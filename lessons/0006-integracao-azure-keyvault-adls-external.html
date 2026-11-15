@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lição 0006: Integração com Ecossistema Azure: Azure Key Vault Secret Scopes & ADLS Gen2 | Databricks Formation DP-750</title>
+  <meta name="description" content="Conecte com segurança seu lakehouse ao ecossistema Azure: Secret Scopes protegidos pelo Azure Key Vault, Managed Identities e External Locations com Storage Credentials do Unity Catalog.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#modulo-1" class="active">Módulo 1</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><a href="../reference/01-spark-and-databricks-architecture-visual-guide.html">Folhas de Referência</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Lições Rápidas:</span>
+      <a href="0001-arquitetura-azure-databricks-compute-dbus.html" class="index-chip ">0001</a>
+      <a href="0002-anatomia-apache-spark-catalyst-photon.html" class="index-chip ">0002</a>
+      <a href="0003-protocolo-delta-lake-acid-time-travel.html" class="index-chip ">0003</a>
+      <a href="0004-workspaces-entra-id-vnet-private-link.html" class="index-chip ">0004</a>
+      <a href="0005-clusters-policies-pools-serverless-sql.html" class="index-chip ">0005</a>
+      <a href="0006-integracao-azure-keyvault-adls-external.html" class="index-chip active">0006</a>
+      <a href="0007-unity-catalog-metastore-namespace-volumes.html" class="index-chip ">0007</a>
+      <a href="0008-controle-acesso-fino-row-column-masks.html" class="index-chip ">0008</a>
+      <a href="0009-linhagem-system-tables-delta-sharing.html" class="index-chip ">0009</a>
+      <a href="0010-ingestao-autoloader-copyinto-lakeflow.html" class="index-chip ">0010</a>
+      <a href="0011-medallion-pyspark-sparksql-scd1-scd2.html" class="index-chip ">0011</a>
+      <a href="0012-structured-streaming-watermark-joins.html" class="index-chip ">0012</a>
+      <a href="0013-liquid-clustering-deletion-vectors-caching.html" class="index-chip ">0013</a>
+      <a href="0014-delta-live-tables-streaming-views-expectations.html" class="index-chip ">0014</a>
+      <a href="0015-orquestracao-dabs-cicd-system-tables.html" class="index-chip ">0015</a>
+      <a href="../simulados/index.html" class="index-chip special">Simulado (+180Q)</a>
+    </div>
+  </nav>
+
+  <article>
+    <!-- Header da Lição -->
+    <div id="bloco-contexto" style="margin-bottom: 1.5rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #FF3621; text-transform: uppercase; letter-spacing: 0.05em;">Módulo 1: Configurar o Ambiente Azure Databricks (15–20% do Exame)</span>
+      <h1>Lição 0006: Integração com Ecossistema Azure: Azure Key Vault Secret Scopes & ADLS Gen2</h1>
+      <p class="subtitle">Conecte com segurança seu lakehouse ao ecossistema Azure: Secret Scopes protegidos pelo Azure Key Vault, Managed Identities e External Locations com Storage Credentials do Unity Catalog.</p>
+    </div>
+
+    <!-- Barra de Nível / Lente (Persistência Global no padrão DP-700) -->
+    <nav class="lens-selector-bar">
+      <span>Nível Ativo:</span>
+      <button class="lens-btn active" data-lens="unificado" data-lens-target="all">
+        <span>🌐 Visão Unificada</span>
+        <span class="lens-key-badge">0</span>
+      </button>
+      <button class="lens-btn" data-lens="junior" data-lens-target="junior">
+        <span>🌱 Júnior</span>
+        <span class="lens-key-badge">1</span>
+      </button>
+      <button class="lens-btn" data-lens="pleno" data-lens-target="pleno">
+        <span>🛠️ Pleno</span>
+        <span class="lens-key-badge">2</span>
+      </button>
+      <button class="lens-btn" data-lens="senior" data-lens-target="senior">
+        <span>🎯 Sênior &amp; DP-750</span>
+        <span class="lens-key-badge">3</span>
+      </button>
+      <button class="lens-btn" data-lens="staff" data-lens-target="staff">
+        <span>⚙️ Staff</span>
+        <span class="lens-key-badge">4</span>
+      </button>
+      <button class="lens-btn" data-lens="clevel" data-lens-target="c-level">
+        <span>🏛️ C-Level</span>
+        <span class="lens-key-badge">5</span>
+      </button>
+      <div class="current-lens-badge" id="current-profile-label">🌐 Visão Unificada Completa</div>
+    </nav>
+
+    <!-- Barra de Navegação Rápida da Lição -->
+    <div class="vark-nav-bar">
+      <span>Navegação da Lição:</span>
+      <a href="#bloco-audio" class="vark-pill">🎧 Áudio Explicativo</a>
+      <a href="#bloco-visual" class="vark-pill">👁️ Arquitetura Visual</a>
+      <a href="#bloco-teoria" class="vark-pill">📖 Teoria &amp; Decisões</a>
+      <a href="#bloco-pratica" class="vark-pill">🛠️ Lab Hands-on</a>
+      <a href="#bloco-quiz" class="vark-pill">🎯 Desafio do Exame</a>
+    </div>
+
+    <!-- Narração Técnica em Áudio -->
+    <section id="bloco-audio" class="vark-section">
+      <span class="vark-badge vark-badge-a">🎧 Narração da Aula &amp; Termos Oficiais</span>
+      <p>
+        Acompanhe a explicação técnica em áudio desta lição, com pronúncia calibrada dos termos oficiais em inglês do Azure Databricks (ex: <em>Catalyst Optimizer, Photon, Liquid Clustering, Deletion Vectors, Delta Log</em>).
+      </p>
+      <div class="audio-hint-box">
+        <strong>Controle de Reprodução:</strong> Utilize o player na base da tela para iniciar o áudio, ajustar a velocidade (1x, 1.25x, 1.5x, 2x) ou use os botões <strong>Fixar/Desafixar</strong> e <strong>Ocultar</strong> para personalizar sua experiência de leitura.
+        <div style="margin-top: 0.75rem; display: flex; gap: 0.6rem; flex-wrap: wrap;">
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPlayFromSection()">
+            <span>▶️ Ouvir Lição Agora</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPin()">
+            <span class="inline-pin-label">📍 Desafixar da Base</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioHide(true)">
+            <span>▼ Ocultar Player</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Arquitetura Visual & Workspace -->
+    <section id="bloco-visual" class="vark-section">
+      <span class="vark-badge vark-badge-v">👁️ Arquitetura de Referência &amp; Console Interativo</span>
+      
+    <div class="svg-diagram-wrapper">
+      <svg viewBox="0 0 960 360" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad-db-0006" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1B3139"/>
+            <stop offset="100%" stop-color="#111E24"/>
+          </linearGradient>
+          <linearGradient id="grad-accent-0006" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#FF3621"/>
+            <stop offset="100%" stop-color="#FF5A36"/>
+          </linearGradient>
+          <filter id="shadow-0006" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.15"/>
+          </filter>
+        </defs>
+
+        <rect x="10" y="10" width="940" height="340" rx="12" fill="#F8FAFC" stroke="#D1DDE5" stroke-width="1.5"/>
+        <rect x="10" y="10" width="940" height="50" rx="12" fill="url(#grad-db-0006)"/>
+        <rect x="10" y="48" width="940" height="12" fill="#111E24"/>
+        <text x="35" y="42" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="700" letter-spacing="0.5">
+          ARQUITETURA DE REFERÊNCIA DP-750 — 0006
+        </text>
+        <text x="890" y="42" fill="#FF5A36" font-family="monospace" font-size="14" font-weight="700" text-anchor="end">
+          AZURE DATABRICKS
+        </text>
+
+        <!-- Bloco 1: Controle & Origem -->
+        <g transform="translate(40, 85)" filter="url(#shadow-0006)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#0078D4" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="#0078D4"/>
+          <rect x="0" y="30" width="260" height="8" fill="#0078D4"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">1. CONTROLE &amp; ORIGEM</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="80" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Microsoft Entra ID / SCIM</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="135" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Azure Key Vault / Secret</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="190" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Control Plane (WebApp/UI)</text>
+        </g>
+
+        <!-- Seta 1 para 2 -->
+        <path d="M 310 200 L 345 200" stroke="#FF3621" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="345,194 357,200 345,206" fill="#FF3621"/>
+
+        <!-- Bloco 2: Compute Plane -->
+        <g transform="translate(360, 85)" filter="url(#shadow-0006)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#FF3621" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="url(#grad-accent-0006)"/>
+          <rect x="0" y="30" width="260" height="8" fill="#FF5A36"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">2. COMPUTE PLANE &amp; SPARK</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="80" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Photon Engine C++ / DBR</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="135" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Job Cluster / Serverless</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="190" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Catalyst Logical &amp; Physical</text>
+        </g>
+
+        <!-- Seta 2 para 3 -->
+        <path d="M 630 200 L 665 200" stroke="#00A972" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="665,194 677,200 665,206" fill="#00A972"/>
+
+        <!-- Bloco 3: Unity Catalog & Delta -->
+        <g transform="translate(680, 85)" filter="url(#shadow-0006)">
+          <rect x="0" y="0" width="240" height="230" rx="8" fill="#FFFFFF" stroke="#00A972" stroke-width="2"/>
+          <rect x="0" y="0" width="240" height="38" rx="8" fill="#00A972"/>
+          <rect x="0" y="30" width="240" height="8" fill="#00A972"/>
+          <text x="120" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">3. UNITY CATALOG &amp; DELTA</text>
+          
+          <rect x="15" y="55" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="80" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Namespace: cat.sch.tbl</text>
+          
+          <rect x="15" y="110" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="135" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Delta Log (_delta_log JSON)</text>
+          
+          <rect x="15" y="165" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="190" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">ADLS Gen2 Parquet / DVs</text>
+        </g>
+      </svg>
+      <div class="svg-caption">Figura 0006.1: Fluxo arquitetural do Azure Databricks detalhando a segregação de responsabilidades do exame DP-750.</div>
+    </div>
+    
+      
+    <div class="workspace-mock-frame">
+      <div class="workspace-mock-header">
+        <div class="workspace-mock-dots">
+          <div class="mock-dot mock-dot-red"></div>
+          <div class="mock-dot mock-dot-yellow"></div>
+          <div class="mock-dot mock-dot-green"></div>
+        </div>
+        <div class="workspace-mock-title">Azure Databricks Workspace — adb-prod-eastus2.azuredatabricks.net (0006)</div>
+        <div style="color: #00A972; font-size: 0.72rem; font-weight: 700;">CONNECTED • DBR 15.4 LTS PHOTON</div>
+      </div>
+      <div style="padding: 1.2rem; background: #141E24; color: #E1E8ED; font-family: monospace; font-size: 0.85rem; line-height: 1.6;">
+        <div style="color: #8BA2AD; margin-bottom: 0.8rem;">// Console interativo do Azure Databricks — Simulação da Lição 0006</div>
+        <div style="color: #FF5A36;">%python</div>
+        <div><span style="color: #0078D4;">import</span> dlt</div>
+        <div><span style="color: #0078D4;">from</span> pyspark.sql.functions <span style="color: #0078D4;">import</span> col, current_timestamp, expr</div>
+        <div style="margin: 0.5rem 0; color: #536B75;"># Executando validação de governança e métricas de execução</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.optimizeWrite.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.autoCompact.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div style="margin-top: 0.6rem; color: #00A972;">✓ SparkSession ativa: driver 10.0.1.4 | Cluster: Job-Cluster-0006 | DBUs/h: 1.5</div>
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Conteúdo Teórico Chaveado por Nível -->
+    <section id="bloco-teoria" class="vark-section">
+      <span class="vark-badge vark-badge-r">📖 Conteúdo Teórico &amp; Matrizes de Decisão</span>
+
+      <!-- 1. TEXTO DA VISÃO UNIFICADA COMPLETA (Padrão DP-700) -->
+      <div class="lens-text-content" data-lens="unificado" data-lens-block>
+        <div class="unified-lens-box">
+          <h3 style="margin-top: 0; font-size: 1.05rem;">🌐 Visão Unificada Completa: Integração Arquitetural de Ponta a Ponta</h3>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            Conecte com segurança seu lakehouse ao ecossistema Azure: Secret Scopes protegidos pelo Azure Key Vault, Managed Identities e External Locations com Storage Credentials do Unity Catalog. Esta lição articula a ponte entre os fundamentos conceituais, a prática de engenharia no Azure Databricks e os critérios rigorosos de aprovação no exame Microsoft DP-750.
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>No dia a dia prático:</strong> Para evitar vazamento de credenciais em notebooks ou repositórios Git, cria-se um Secret Scope backed por Azure Key Vault através da URL especial `https://<databricks-instance>#secrets/createScope`. No código PySpark/Python, o segredo é lido dinamicamente com `dbutils.secrets.get(scope='meu-scope', key='minha-chave')`, e o Databricks mascara automaticamente o valor retornado na saída do notebook como `[REDACTED]`. Para conexão com o ADLS Gen2 no Unity Catalog, a arquitetura moderna abandona montagens legadas (`dbutils.fs.mount`) e utiliza Storage Credentials associadas a Azure Managed Identity com permissão Storage Blob Data Contributor.
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>Diretriz oficial DP-750 &amp; Decisão Arquitetural:</strong> Pegadinha crítica do DP-750: O uso de montagens `dbutils.fs.mount()` e chaves de acesso (Access Keys) em arquivos de configuração é considerado padrão LEGADO e inseguro. O exame exige Unity Catalog Storage Credentials e External Locations (`CREATE EXTERNAL LOCATION ... URL 'abfss://...' WITH (STORAGE CREDENTIAL ...)`). Dessa forma, o acesso aos arquivos não depende do usuário que rodou o cluster, mas sim do RBAC granular gerenciado centralmente no Metastore.
+          </p>
+          <p style="margin-bottom: 0; line-height: 1.65;">
+            <strong>Mecânica Interna &amp; Governança Executiva:</strong> Ao integrar com Azure Data Factory (ADF), utiliza-se o Databricks Linked Service autenticado via Managed Identity ou Service Principal associado a um Secret no Key Vault. Quando o ADF dispara uma Databricks Notebook Activity, ele pode injetar parâmetros dinâmicos via `baseParameters`, consumidos no notebook via Databricks Widgets (`dbutils.widgets.get('param_name')`). Em termos de FinOps corporativo: Segurança e Conformidade: A integração direta com o Azure Key Vault e Managed Identity garante que tokens nunca sejam compartilhados entre membros do time, viabilizando rotação de segredos em tempo real sem interrupção de pipelines produtivos.
+          </p>
+        </div>
+      </div>
+
+      <!-- 2. Lente Júnior -->
+      <div class="lens-text-content" data-lens="junior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-junior">🌱 Lente Júnior: Fundamentos &amp; Analogia do Mundo Real</span>
+        <p>Guardar senhas ou chaves de banco de dados escritas no meio do código de um notebook é como deixar a chave da sua casa colada com fita adesiva na porta da frente! O Azure Key Vault é o cofre ultra-seguro do banco, e o Databricks só busca a chave na hora de abrir a porta e a descarta em seguida.</p>
+      </div>
+
+      <!-- 3. Lente Pleno -->
+      <div class="lens-text-content" data-lens="pleno" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-pleno">🛠️ Lente Pleno: Engenharia Prática &amp; Implementação</span>
+        <p>Para evitar vazamento de credenciais em notebooks ou repositórios Git, cria-se um Secret Scope backed por Azure Key Vault através da URL especial `https://<databricks-instance>#secrets/createScope`. No código PySpark/Python, o segredo é lido dinamicamente com `dbutils.secrets.get(scope='meu-scope', key='minha-chave')`, e o Databricks mascara automaticamente o valor retornado na saída do notebook como `[REDACTED]`. Para conexão com o ADLS Gen2 no Unity Catalog, a arquitetura moderna abandona montagens legadas (`dbutils.fs.mount`) e utiliza Storage Credentials associadas a Azure Managed Identity com permissão Storage Blob Data Contributor.</p>
+        <label for="sn-0006-1" class="margin-toggle sidenote-number"></label>
+        <input type="checkbox" id="sn-0006-1" class="margin-toggle"/>
+        <span class="sidenote">Nota prática de engenharia: A adesão estrita aos padrões de convenção evita regressões em produção e garante portabilidade imediata para ambientes multirregionais no Azure.</span>
+      </div>
+
+      <!-- 4. Lente Sênior & Exame DP-750 -->
+      <div class="lens-text-content" data-lens="senior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-senior">🎯 Lente Sênior: Foco no Exame DP-750 &amp; Pegadinhas Oficiais</span>
+        <p>Pegadinha crítica do DP-750: O uso de montagens `dbutils.fs.mount()` e chaves de acesso (Access Keys) em arquivos de configuração é considerado padrão LEGADO e inseguro. O exame exige Unity Catalog Storage Credentials e External Locations (`CREATE EXTERNAL LOCATION ... URL 'abfss://...' WITH (STORAGE CREDENTIAL ...)`). Dessa forma, o acesso aos arquivos não depende do usuário que rodou o cluster, mas sim do RBAC granular gerenciado centralmente no Metastore.</p>
+        <blockquote>
+          <strong>⚠️ Dica Crítica de Exame Microsoft DP-750:</strong> Preste extrema atenção aos enunciados que mencionam restrições orçamentárias (FinOps) vs restrições de latência. A resposta tecnicamente mais veloz nem sempre é a correta se violar a diretriz de menor custo de DBUs do enunciado.
+        </blockquote>
+      </div>
+
+      <!-- 5. Lente Staff / Internals -->
+      <div class="lens-text-content" data-lens="staff" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-staff">⚙️ Lente Staff: Mecânica Interna &amp; Algoritmos Sob o Capô</span>
+        <p>Ao integrar com Azure Data Factory (ADF), utiliza-se o Databricks Linked Service autenticado via Managed Identity ou Service Principal associado a um Secret no Key Vault. Quando o ADF dispara uma Databricks Notebook Activity, ele pode injetar parâmetros dinâmicos via `baseParameters`, consumidos no notebook via Databricks Widgets (`dbutils.widgets.get('param_name')`).</p>
+      </div>
+
+      <!-- 6. Lente C-Level / FinOps -->
+      <div class="lens-text-content" data-lens="c-level" data-lens-alt="clevel" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-c-level">🏛️ Lente C-Level: Governança, TCO &amp; FinOps de DBUs</span>
+        <p>Segurança e Conformidade: A integração direta com o Azure Key Vault e Managed Identity garante que tokens nunca sejam compartilhados entre membros do time, viabilizando rotação de segredos em tempo real sem interrupção de pipelines produtivos.</p>
+      </div>
+
+      <!-- Tabela ASCII de Alta Densidade Tufte -->
+      <div class="fullwidth" style="margin: 2rem 0;">
+        <h3>📊 Matriz de Decisão Arquitetural — Lição 0006</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Critério / Dimensão</th>
+              <th>Abordagem Convencional (Legada)</th>
+              <th>Padrão Ouro Azure Databricks (DP-750)</th>
+              <th>Impacto em FinOps &amp; SLA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Governança de Dados</strong></td>
+              <td>Hive Metastore e montagens DBFS locais</td>
+              <td>Unity Catalog (3-Level Namespace: cat.sch.tbl)</td>
+              <td>Zero vazamento de credenciais; trilha de auditoria centralizada</td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de Computação</strong></td>
+              <td>All-Purpose Clusters com autotermination desligado</td>
+              <td>Job Clusters efêmeros ou Serverless Compute</td>
+              <td>Redução de até 60% no consumo de DBUs por execução</td>
+            </tr>
+            <tr>
+              <td><strong>Otimização de Armazenamento</strong></td>
+              <td>Particionamento rígido com centenas de subdiretórios</td>
+              <td>Liquid Clustering (CLUSTER BY) + Deletion Vectors</td>
+              <td>Eliminação de skew e mutações sem reescrever Parquets</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Laboratório Prático Passo a Passo -->
+    <section id="bloco-pratica" class="vark-section">
+      <span class="vark-badge vark-badge-k">🛠️ Laboratório Prático Passo a Passo (Padrão Microsoft Learn)</span>
+
+      <!-- Hands-on Lab Passo a Passo com Aviso Azure -->
+      
+    <!-- BANNER DE PRÉ-REQUISITO OBRIGATÓRIO DA AZURE -->
+    <div class="lab-prereq-banner">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <h4>
+          PRÉ-REQUISITO OBRIGATÓRIO DA AZURE (Microsoft Learn Standards)
+        </h4>
+        <p>
+          Para realizar este laboratório prático e executar os comandos reais, criar clusters, pipelines Delta Live Tables (DLT) e tabelas do Unity Catalog, <strong>você precisará de um Workspace do Azure Databricks alocado na sua assinatura do Microsoft Azure</strong> (Recomendado tier Premium para suporte completo a Unity Catalog e Serverless Compute).
+        </p>
+        <div style="margin-top: 0.6rem; font-size: 0.85rem; opacity: 0.9;">
+          <strong>Pré-requisitos Técnicos:</strong> Assinatura Azure com Azure Key Vault e Azure Data Lake Storage Gen2 provisionados.
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTRUTURA DO LAB PASSO A PASSO -->
+    <div class="lab-container">
+      <div class="lab-header">
+        <div>
+          <span style="font-size: 0.72rem; font-weight: 800; background: #0078D4; color: #FFFFFF; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">
+            Hands-on Lab Walkthrough
+          </span>
+          <h3 style="margin: 0.4rem 0 0 0; font-size: 1.2rem;">Lab 0006: Integração Segura com Azure Key Vault e Storage Credentials ADLS Gen2</h3>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 0.85rem; font-weight: 600;">⏱️ Tempo Estimado: 35 minutos</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <strong style="font-size: 0.95rem;">📖 Cenário do Laboratório:</strong>
+        <p style="margin: 0.3rem 0; font-size: 0.92rem; line-height: 1.6;">
+          A equipe de arquitetura proibiu credenciais em texto plano. Você deve conectar o Databricks ao Azure Key Vault via Secret Scope e configurar Storage Credentials no Unity Catalog via Managed Identity para acessar o ADLS Gen2.
+        </p>
+      </div>
+
+      <!-- Tarefas Passo a Passo -->
+      <div style="margin-top: 1.5rem;">
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 1</span>
+            Obter os Dados do Azure Key Vault
+          </h4>
+          <p style="white-space: pre-line;">
+            1. No Azure Portal, abra o recurso Azure Key Vault.
+2. Na aba 'Properties', copie:
+   - DNS Name (ex: `https://kv-dp750-prod.vault.azure.net/`)
+   - Resource ID (ex: `/subscriptions/.../resourceGroups/.../providers/Microsoft.KeyVault/vaults/...`)
+3. Na aba 'Secrets', crie um segredo chamado `adls-access-token` com um valor de teste.
+          </p>
+          
+          
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 2</span>
+            Criar o Secret Scope Backed pelo Azure Key Vault no Databricks
+          </h4>
+          <p style="white-space: pre-line;">
+            1. No navegador, acerte a URL do seu workspace Databricks adicionando `#secrets/createScope` ao final:
+   `https://<sua-instancia-databricks>#secrets/createScope`
+2. Preencha os campos:
+   - Scope Name: `kv-dp750-scope`
+   - Manage Principal: Creator
+   - DNS Name: cole o DNS Name do Key Vault
+   - Resource ID: cole o Resource ID do Key Vault
+3. Clique em 'Create'.
+          </p>
+          
+          
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 3</span>
+            Recuperar o Segredo Mascarado via PySpark
+          </h4>
+          <p style="white-space: pre-line;">
+            1. Abra um notebook e execute o código de leitura do segredo:
+          </p>
+          
+            <div style="margin: 0.8rem 0;">
+              <span style="font-size: 0.75rem; font-weight: 700; color: #536B75; text-transform: uppercase;">Código para colar na célula do Notebook Databricks:</span>
+              <pre><code># COMMAND ----------
+# Leitura segura do segredo armazenado no Azure Key Vault
+token = dbutils.secrets.get(scope="kv-dp750-scope", key="adls-access-token")
+
+# O Databricks mascara automaticamente o valor na saída com [REDACTED]
+print(f"Segredo recuperado com segurança: {token}")
+
+# Valida que o token não está vazio
+assert len(token) > 0, "Falha ao recuperar o token do Azure Key Vault"
+print("✓ Validação de conformidade DP-750 aprovada: Token protegido!")</code></pre>
+            </div>
+            
+          
+            <div style="background: #0B161B; border: 1px solid #253D47; border-radius: 6px; padding: 0.8rem 1rem; margin: 0.6rem 0; font-family: monospace; font-size: 0.82rem; color: #00A972;">
+              <span style="color: #8BA2AD; font-size: 0.72rem; display: block; margin-bottom: 0.3rem;">✓ Saída Esperada no Console Databricks:</span>
+              Segredo recuperado com segurança: [REDACTED]<br>✓ Validação de conformidade DP-750 aprovada: Token protegido!
+            </div>
+            
+        </div>
+        
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Desafio do Exame DP-750 com Embaralhamento Fisher-Yates -->
+    <section id="bloco-quiz" class="vark-section">
+      <div class="flash-quiz-box">
+        <div class="flash-quiz-header">
+          <h4 class="flash-quiz-title">🎯 Desafio Flash DP-750</h4>
+          <button type="button" class="btn-shuffle" title="Embaralha as alternativas usando o algoritmo Fisher-Yates">
+            <span>🔀 Embaralhar Novamente</span>
+          </button>
+        </div>
+        <div class="flash-question-text">Um engenheiro de dados precisa configurar um pipeline no Azure Databricks para ler dados confidenciais de um banco SQL externo. A política corporativa proíbe terminantemente a inclusão de credenciais em texto plano nos notebooks e exige rotação centralizada das chaves no Azure. Qual arquitetura atende a essa exigência?</div>
+        <div class="flash-options-list">
+          
+          <div class="flash-option-item" data-correct="true" data-explanation="Azure Key Vault-backed secret scopes garantem que os segredos residam e sejam rotacionados centralmente no Key Vault, sendo recuperados em runtime pelo Databricks e mascarados na interface como [REDACTED].">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Criar um Secret Scope backed por Azure Key Vault e recuperar a senha no notebook usando dbutils.secrets.get().</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="Gravar senhas no DBFS expõe as credenciais a qualquer usuário com acesso ao workspace e viola os princípios fundamentais de segurança.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Gravar a senha em um arquivo de texto no DBFS (/FileStore/passwords.txt) e ler com spark.read.text().</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="Variáveis de ambiente públicas em cluster policies podem ser inspecionadas por desenvolvedores e não permitem rotação segura.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Declarar a senha como variável de ambiente global pública dentro da Cluster Policy.</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="Comentários em notebooks são versionados no Git e totalmente visíveis em texto claro.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Passar a senha como comentário de cabeçalho na primeira célula do notebook.</span>
+          </div>
+          
+        </div>
+        <div class="flash-feedback-box"></div>
+      </div>
+    </section>
+
+    <!-- Navegação de Rodapé entre Lições -->
+    <footer class="lesson-footer">
+      <div><a href="0005-clusters-policies-pools-serverless-sql.html" class="nav-btn">← Lição Anterior</a></div>
+      <div class="lesson-footer-counter">Lição 0006 de 0015</div>
+      <div><a href="0007-unity-catalog-metastore-namespace-volumes.html" class="nav-btn">Próxima Lição →</a></div>
+    </footer>
+  </article>
+
+  <!-- Sticky Audio Player com Narração Neural PT-BR -->
+  <aside class="sticky-audio-bar" id="sticky-audio-bar">
+    <audio id="lesson-audio" preload="auto">
+      <source src="../assets/audio/lesson-0006-pt.mp3" type="audio/mpeg">
+    </audio>
+    <div class="audio-info">
+      <span class="audio-icon">🎧</span>
+      <div>
+        <p class="audio-text-title">Narração da Lição 0006</p>
+        <p class="audio-text-sub">Áudio Neural PT-BR • Pronúncia Técnica Databricks (Kokoro 82M)</p>
+      </div>
+    </div>
+    <div class="audio-controls">
+      <button class="audio-btn audio-btn-play" id="btn-audio-play" title="Reproduzir / Pausar Áudio">▶</button>
+      <div class="audio-progress-bar" id="audio-progress-bar">
+        <div class="audio-progress-fill" id="audio-progress-fill"></div>
+      </div>
+      <span class="audio-time"><span id="audio-time-current">00:00</span> / <span id="audio-time-total">00:00</span></span>
+      <button class="audio-speed-btn" id="btn-audio-speed" title="Velocidade de Reprodução">1x</button>
+    </div>
+    <div class="audio-actions">
+      <button type="button" class="audio-tool-btn" id="btn-audio-pin" title="Alternar entre barra fixa na base ou embutida no final da página">
+        <span class="pin-icon">📌</span>
+        <span class="pin-label">Fixado</span>
+      </button>
+      <button type="button" class="audio-tool-btn audio-btn-close" id="btn-audio-hide" title="Ocultar Tocador de Áudio (recolher para pílula flutuante)">
+        <span>▼</span>
+        <span class="hide-label">Ocultar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Pílula Flutuante Discreta para Reabrir o Player quando Oculto -->
+  <button type="button" class="audio-reopen-pill" id="btn-audio-reopen" title="Expandir Tocador de Áudio da Lição" style="display: none;">
+    <span class="pill-icon">🎧</span>
+    <span class="pill-label">Áudio 0006</span>
+    <span class="pill-play-state" id="pill-play-state">▶</span>
+  </button>
+
+</body>
+</html>

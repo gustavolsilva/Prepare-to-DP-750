@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folha 03: Matriz de Decisão: Auto Loader vs COPY INTO vs DLT vs Lakeflow | Databricks Formation DP-750</title>
+  <meta name="description" content="Critérios de seleção para Ingestão Incremental, Auto Loader (cloudFiles), Schema Evolution, Rescued Data e Delta Live Tables.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#referencias" class="active">Folhas de Referência</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Folhas Rápidas:</span>
+      <a href="01-spark-and-databricks-architecture-visual-guide.html" class="index-chip ">01 Arquitetura</a>
+      <a href="02-unity-catalog-security-and-governance-guide.html" class="index-chip ">02 Unity Catalog</a>
+      <a href="03-ingestion-autoloader-and-dlt-decision-matrix.html" class="index-chip active">03 Ingestão &amp; DLT</a>
+      <a href="04-pyspark-and-spark-sql-engineering-cheatsheet.html" class="index-chip ">04 PySpark &amp; SQL</a>
+      <a href="05-delta-lake-liquid-clustering-and-tuning-guide.html" class="index-chip ">05 Liquid &amp; Tuning</a>
+      <a href="06-workflows-dabs-cicd-and-system-tables-cheatsheet.html" class="index-chip ">06 DABs &amp; System</a>
+    </div>
+  </nav>
+
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #0078D4; text-transform: uppercase; letter-spacing: 0.05em;">Folha de Referência Rápida DP-750</span>
+      <h1>Folha 03: Matriz de Decisão: Auto Loader vs COPY INTO vs DLT vs Lakeflow</h1>
+      <p class="subtitle">Critérios de seleção para Ingestão Incremental, Auto Loader (cloudFiles), Schema Evolution, Rescued Data e Delta Live Tables.</p>
+    </div>
+
+    <div class="fullwidth">
+      
+        <h2>1. Matriz Definitiva de Decisão de Ingestão do DP-750</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Critério / Requisito</th>
+              <th>Auto Loader (cloudFiles)</th>
+              <th>COPY INTO (SQL)</th>
+              <th>Delta Live Tables (DLT)</th>
+              <th>Lakeflow Connect</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Escala de Arquivos</strong></td>
+              <td>Milhões de arquivos contínuos</td>
+              <td>Milhares a centenas de milhares</td>
+              <td>Qualquer escala declarativa</td>
+              <td>Bancos OLTP relacionais e SaaS</td>
+            </tr>
+            <tr>
+              <td><strong>Suporte a Streaming</strong></td>
+              <td><strong>SIM</strong> (Spark Structured Streaming)</td>
+              <td>NÃO (Apenas Batch idempotente)</td>
+              <td><strong>SIM</strong> (Streaming Tables)</td>
+              <td>Automático via pipelines DLT</td>
+            </tr>
+            <tr>
+              <td><strong>Schema Drift &amp; Evolution</strong></td>
+              <td>Automático com <code>_rescued_data</code></td>
+              <td>Exige schema estável pré-definido</td>
+              <td>Nativo em Streaming Tables</td>
+              <td>Schema mapping gerenciado</td>
+            </tr>
+            <tr>
+              <td><strong>Modo de Detecção</strong></td>
+              <td>Directory Listing ou Event Grid</td>
+              <td>Varredura de diretório (List API)</td>
+              <td>Gerenciado pelo runtime DLT</td>
+              <td>CDC direto na fonte</td>
+            </tr>
+            <tr>
+              <td><strong>Custo e Complexidade</strong></td>
+              <td>Baixíssimo; ideal para cloud files</td>
+              <td>Mínimo; simples comando SQL</td>
+              <td>Gerenciado; inclui Data Quality</td>
+              <td>Conectores nativos Databricks</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>2. Auto Loader: Directory Listing vs File Notification</h2>
+        <ul>
+          <li><strong>Directory Listing Mode (Padrão):</strong> O Auto Loader lista recursivamente os arquivos no diretório do storage no ADLS Gen2. É rápido e não exige nenhuma infraestrutura adicional no Azure. É recomendado para diretórios com até <strong>alguns milhões de arquivos</strong>.</li>
+          <li><strong>File Notification Mode:</strong> Para diretórios que acumulam <strong>dezenas de milhões de arquivos</strong>, o Auto Loader cria automaticamente um <strong>Azure Event Grid</strong> e uma fila <strong>Azure Queue Storage</strong> para escutar notificações de novos blobs. Isso elimina a latência de listar arquivos e evita gargalos no Driver.</li>
+        </ul>
+
+        <h2>3. Schema Evolution Modes & Coluna _rescued_data no Auto Loader</h2>
+        <pre><code>-- Opções para cloudFiles.schemaEvolutionMode:
+1. addNewColumns (Padrão): Novas colunas detectadas nos arquivos são adicionadas automaticamente ao schema Delta.
+2. rescue: O schema permanece estrito, mas qualquer coluna nova ou dado corrompido é gravado na coluna _rescued_data.
+3. failOnNewColumns: O pipeline falha imediatamente se detectar um campo novo, exigindo intervenção manual.
+4. none: Ignora novos campos nos arquivos sem adicioná-los.</code></pre>
+
+        <h2>4. Snippet Padrão Ouro de Auto Loader com Trigger AvailableNow</h2>
+        <pre><code>from pyspark.sql.functions import current_timestamp
+
+# Ingestão contínua com suporte a schema drift e processamento efêmero
+df_stream = (spark.readStream
+    .format("cloudFiles")
+    .option("cloudFiles.format", "json")
+    .option("cloudFiles.schemaLocation", "abfss://checkpoints@adls.dfs.core.windows.net/schemas/pedidos")
+    .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
+    .option("cloudFiles.inferColumnTypes", "true")
+    .load("abfss://raw@adls.dfs.core.windows.net/landing/pedidos/"))
+
+# Adicionando metadados de ingestão
+df_bronze = df_stream.withColumn("ingestion_time", current_timestamp())
+
+# Gravando na camada Bronze com trigger AvailableNow (ideal para Job Clusters)
+query = (df_bronze.writeStream
+    .format("delta")
+    .outputMode("append")
+    .option("checkpointLocation", "abfss://checkpoints@adls.dfs.core.windows.net/checkpoints/pedidos_bronze")
+    .trigger(availableNow=True)
+    .toTable("prod_lakehouse.bronze.pedidos_raw"))
+
+query.awaitTermination()</code></pre>
+
+        <h2>5. Comando COPY INTO (Batch SQL Idempotente)</h2>
+        <pre><code>-- Ingestão batch de arquivos Parquet com idempotência nativa:
+COPY INTO prod_lakehouse.bronze.telemetria_copy
+FROM 'abfss://raw@adls.dfs.core.windows.net/telemetria/'
+FILEFORMAT = PARQUET
+FILES = ('telemetria_20250101.parquet', 'telemetria_20250102.parquet')
+FORMAT_OPTIONS ('mergeSchema' = 'true')
+COPY_OPTIONS ('force' = 'false'); -- force=false garante que arquivos já carregados sejam ignorados</code></pre>
+
+        <h2>6. ⚠️ Pegadinhas Críticas do Exame DP-750 (Ingestão)</h2>
+        <blockquote>
+          <ul>
+            <li><strong>COPY INTO vs Auto Loader em Streaming:</strong> Se o enunciado mencionar carregamento <em>contínuo</em> ou <em>streaming</em> com <em>schema drift</em> inesperado, a resposta correta é <strong>Auto Loader (cloudFiles)</strong>. <code>COPY INTO</code> só roda em batch estático.</li>
+            <li><strong>Trigger Once vs AvailableNow:</strong> O trigger <code>once=True</code> está depreciado no Spark moderno. O padrão oficial testado no DP-750 para processar lotes pendentes em Jobs efêmeros é <code>trigger(availableNow=True)</code>.</li>
+            <li><strong>Onde os dados corrompidos vão no Auto Loader?</strong> Sempre para a coluna oculta especial <strong><code>_rescued_data</code></strong> em formato de string JSON.</li>
+          </ul>
+        </blockquote>
+        
+    </div>
+
+    <footer style="margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid #E1E8ED; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-sans);">
+      <div><a href="../index.html#referencias">← Voltar ao Portal</a></div>
+      <div><a href="../simulados/index.html" style="font-weight: 700; color: #FF3621;">Praticar no Simulado Oficial (+180Q) →</a></div>
+    </footer>
+  </article>
+
+  <script src="../assets/lens.js"></script>
+</body>
+</html>

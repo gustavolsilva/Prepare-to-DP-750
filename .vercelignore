@@ -1,0 +1,14 @@
+# Vercel Deployment Ignore
+.git
+.venv
+tests/
+scripts/
+labs/*.py
+docs/
+Makefile
+README.md
+assets/models/
+*.wav
+__pycache__
+*.pyc
+

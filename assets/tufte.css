@@ -1,0 +1,415 @@
+/* ==========================================================================
+   Tufte CSS — Databricks Formation DP-750 Edition
+   Inspirado no estilo editorial de Edward Tufte para Alta Densidade de Informação
+   ========================================================================== */
+
+@charset "utf-8";
+
+/* ==========================================================================
+   Typography — MesloLGS NF (Nerd Fonts)
+   ========================================================================== */
+
+@font-face {
+  font-family: 'MesloLGS NF';
+  src: local('MesloLGS NF'),
+       local('MesloLGS NF Regular'),
+       local('MesloLGS Nerd Font'),
+       url('fonts/MesloLGS_NF_Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MesloLGS NF';
+  src: local('MesloLGS NF Bold'),
+       local('MesloLGS Nerd Font Bold'),
+       url('fonts/MesloLGS_NF_Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MesloLGS NF';
+  src: local('MesloLGS NF Italic'),
+       local('MesloLGS Nerd Font Italic'),
+       url('fonts/MesloLGS_NF_Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MesloLGS NF';
+  src: local('MesloLGS NF Bold Italic'),
+       local('MesloLGS Nerd Font Bold Italic'),
+       url('fonts/MesloLGS_NF_Bold_Italic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MesloLGS Nerd Font';
+  src: local('MesloLGS NF'),
+       local('MesloLGS Nerd Font'),
+       url('fonts/MesloLGS_NF_Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MesloLGS Nerd Font';
+  src: local('MesloLGS NF Bold'),
+       local('MesloLGS Nerd Font Bold'),
+       url('fonts/MesloLGS_NF_Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-serif: "MesloLGS NF", "MesloLGS Nerd Font", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "MesloLGS NF", "MesloLGS Nerd Font", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "MesloLGS NF", "MesloLGS Nerd Font", "Fira Code", "Cascadia Code", "Consolas", "Courier New", monospace;
+  
+  --color-bg: #FFFFFF;
+  --color-text: #1B3139;
+  --color-text-muted: #536B75;
+  --color-border: #E1E8ED;
+  --color-accent: #FF3621; /* Databricks Lava */
+  --color-azure: #0078D4;  /* Azure Blue */
+  --color-teal: #00A972;   /* Lakehouse Green */
+  --color-code-bg: #F4F7F9;
+  --color-mark: #FFF3C4;
+  
+  --content-width: 55%;
+  --margin-width: 38%;
+  --max-width: 1380px;
+}
+
+html {
+  font-size: 16px;
+  line-height: 1.7;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-feature-settings: "kern", "liga", "onum";
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+article {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 2.5rem 2rem 5rem 2rem;
+  position: relative;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  color: #111E24;
+  line-height: 1.25;
+  margin-top: 2.5rem;
+  margin-bottom: 0.8rem;
+}
+
+h1 {
+  font-size: 2.4rem;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.8rem;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 0.3rem;
+  margin-top: 3.5rem;
+}
+
+h3 {
+  font-size: 1.35rem;
+  color: #1B3139;
+}
+
+.subtitle {
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  margin-top: -0.5rem;
+  margin-bottom: 2rem;
+  display: block;
+}
+
+/* Parágrafos e Largura de Conteúdo */
+p, ul, ol, dl, blockquote {
+  width: var(--content-width);
+  max-width: 780px;
+  font-size: 1.05rem;
+  box-sizing: border-box;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* Sidenotes e Marginnotes */
+.sidenote, .marginnote {
+  float: right;
+  clear: right;
+  margin-right: -42%;
+  width: 38%;
+  margin-top: 0.3rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  vertical-align: baseline;
+  position: relative;
+  font-family: var(--font-sans);
+  background: #F8FAFC;
+  border-left: 3px solid var(--color-azure);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.sidenote-number {
+  counter-increment: sidenote-counter;
+}
+
+.sidenote-number:after, .sidenote:before {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  top: -0.5rem;
+  left: 0.1rem;
+  color: var(--color-accent);
+  font-weight: bold;
+}
+
+.sidenote-number:after {
+  content: counter(sidenote-counter);
+  vertical-align: super;
+}
+
+.sidenote:before {
+  content: counter(sidenote-counter) " ";
+  margin-right: 0.3rem;
+}
+
+input.margin-toggle {
+  display: none;
+}
+
+label.sidenote-number {
+  display: inline;
+  cursor: pointer;
+}
+
+label.margin-toggle:not(.sidenote-number) {
+  display: none;
+}
+
+/* Código & Pré-formatado */
+code, pre {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+code {
+  background-color: var(--color-code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  color: #C7254E;
+  border: 1px solid #E2E8F0;
+}
+
+pre {
+  width: var(--content-width);
+  max-width: 780px;
+  padding: 1rem 1.25rem;
+  background-color: #111E24;
+  color: #F8FAFC;
+  border-radius: 6px;
+  overflow-x: auto;
+  line-height: 1.45;
+  border-left: 4px solid var(--color-accent);
+}
+
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border: none;
+  font-size: 0.9em;
+}
+
+/* Tabelas Densas Tufte */
+table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  margin: 1.8rem 0;
+  border-top: 2px solid #111E24;
+  border-bottom: 2px solid #111E24;
+}
+
+table th {
+  font-weight: 600;
+  text-align: left;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid #111E24;
+  background-color: #F8FAFC;
+  color: #111E24;
+}
+
+table td {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+table tr:hover td {
+  background-color: #F0F6F9;
+}
+
+/* Full Width Container */
+.fullwidth {
+  width: 100% !important;
+  max-width: 100% !important;
+  clear: both;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1.5rem 0;
+  padding: 0.5rem 0 0.5rem 1.2rem;
+  color: #2D444E;
+  font-style: italic;
+  background: #FFF9F8;
+  border-radius: 0 4px 4px 0;
+}
+
+blockquote footer {
+  font-size: 0.85rem;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-style: normal;
+}
+
+/* Responsividade Mobile / Tablet */
+@media (max-width: 960px) {
+  p, ul, ol, dl, blockquote, pre {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .sidenote, .marginnote {
+    float: none;
+    clear: both;
+    width: 100%;
+    margin: 1rem 0;
+    display: block;
+  }
+  
+  label.margin-toggle:not(.sidenote-number) {
+    display: inline;
+    cursor: pointer;
+    color: var(--color-azure);
+    font-weight: bold;
+  }
+  
+  input.margin-toggle:not(:checked) + .sidenote,
+  input.margin-toggle:not(:checked) + .marginnote {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE (MIDNIGHT EDITION — Databricks Formation DP-750)
+   ========================================================================== */
+html[data-theme="dark"],
+body[data-theme="dark"] {
+  --color-bg: #0E161B;
+  --color-text: #E1E8ED;
+  --color-text-muted: #8BA2AD;
+  --color-border: #253D47;
+  --color-code-bg: #141E24;
+  --color-mark: #3D2D00;
+
+  background-color: #0E161B !important;
+  color: #E1E8ED !important;
+}
+
+html[data-theme="dark"] article {
+  background-color: #0E161B;
+  color: #E1E8ED;
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6 {
+  color: #F8FAFC !important;
+  border-color: #253D47 !important;
+}
+
+html[data-theme="dark"] p,
+html[data-theme="dark"] li,
+html[data-theme="dark"] td {
+  color: #D1DDE5 !important;
+}
+
+html[data-theme="dark"] code {
+  background-color: #141E24 !important;
+  color: #00E5CF !important;
+  border-color: #253D47 !important;
+}
+
+html[data-theme="dark"] pre {
+  background-color: #0B1217 !important;
+  border-color: #253D47 !important;
+}
+
+html[data-theme="dark"] pre code {
+  background-color: transparent !important;
+}
+
+html[data-theme="dark"] table th {
+  background-color: #141E24 !important;
+  color: #F8FAFC !important;
+  border-color: #253D47 !important;
+}
+
+html[data-theme="dark"] table td {
+  border-color: #1F3039 !important;
+}
+
+html[data-theme="dark"] table tr:hover td {
+  background-color: #1A2830 !important;
+}
+
+html[data-theme="dark"] blockquote {
+  background: #191E21 !important;
+  color: #E1E8ED !important;
+  border-left-color: #FF5A36 !important;
+}
+
+html[data-theme="dark"] .sidenote,
+html[data-theme="dark"] .marginnote {
+  color: #8BA2AD !important;
+}
+

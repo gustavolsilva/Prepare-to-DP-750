@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Centro Oficial de Simulados Pearson VUE (+180Q) | Databricks Formation DP-750</title>
+  <meta name="description" content="Simulador oficial para o exame Microsoft DP-750: Implementing Data Engineering Solutions Using Azure Databricks. Mais de 180 questões inéditas e 8 estudos de caso split-screen.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+  <style>
+    /* Estilos específicos do Simulador Pearson VUE */
+    .exam-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      font-family: var(--font-sans);
+    }
+
+    .exam-top-bar {
+      background: #111E24;
+      color: #FFFFFF;
+      padding: 0.8rem 1.5rem;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-left: 4px solid #FF3621;
+    }
+
+    .exam-timer {
+      font-size: 1.4rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #FF5A36;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-exam-action {
+      background: #253D47;
+      color: #FFFFFF;
+      border: 1px solid #375360;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-exam-action:hover {
+      background: #FF3621;
+      border-color: #FF3621;
+    }
+
+    .btn-finish-exam {
+      background: #FF3621;
+      border-color: #E02916;
+    }
+
+    .exam-split-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      min-height: 580px;
+    }
+
+    .exam-option-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8rem;
+      padding: 0.85rem 1.2rem;
+      border: 1px solid #D1DDE5;
+      border-radius: 8px;
+      margin-bottom: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: #FFFFFF;
+    }
+
+    .exam-option-card:hover {
+      border-color: #0078D4;
+      background: #F8FAFC;
+    }
+
+    .exam-option-card.selected {
+      border-color: #FF3621;
+      background: #FFF9F8;
+      box-shadow: 0 2px 8px rgba(255, 54, 33, 0.1);
+    }
+
+    .exam-option-letter {
+      font-weight: 700;
+      color: #1B3139;
+      font-size: 0.95rem;
+      min-width: 1.5rem;
+    }
+
+    .exam-option-text {
+      font-size: 0.95rem;
+      color: #111E24;
+      line-height: 1.5;
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+      gap: 6px;
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: #F8FAFC;
+      border: 1px solid #D1DDE5;
+      border-radius: 8px;
+    }
+
+    .palette-btn {
+      height: 36px;
+      background: #FFFFFF;
+      border: 1px solid #BDCBD3;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #1B3139;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .palette-btn:hover {
+      border-color: #FF3621;
+    }
+
+    .palette-btn.current {
+      outline: 2px solid #0078D4;
+      font-weight: 800;
+    }
+
+    .palette-btn.answered {
+      background: #1B3139;
+      color: #FFFFFF;
+      border-color: #1B3139;
+    }
+
+    .palette-btn.marked {
+      border-top: 4px solid #FFBD2E;
+    }
+
+    .btn-review-mark {
+      background: transparent;
+      border: 1px solid #BDCBD3;
+      color: #536B75;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    .btn-review-mark.marked {
+      background: #FFF3C4;
+      border-color: #FFB900;
+      color: #8A5F00;
+      font-weight: 700;
+    }
+
+    /* Modos de Exame Cards */
+    .mode-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .mode-card {
+      background: #FFFFFF;
+      border: 1px solid #D1DDE5;
+      border-radius: 8px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+
+    .mode-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      border-color: #FF3621;
+    }
+
+    .mode-card.featured {
+      border: 2px solid #FF3621;
+      background: #FFFDFC;
+    }
+
+    .mode-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 0.8rem;
+    }
+
+    .mode-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #111E24;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .mode-desc {
+      font-size: 0.88rem;
+      color: #536B75;
+      line-height: 1.5;
+      margin-bottom: 1.2rem;
+    }
+
+    /* Tela de Resultados */
+    .exam-result-banner {
+      padding: 2.5rem;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #FFFFFF;
+    }
+
+    .exam-result-banner.passed {
+      background: linear-gradient(135deg, #00A972, #00703C);
+    }
+
+    .exam-result-banner.failed {
+      background: linear-gradient(135deg, #E02916, #A3180B);
+    }
+
+    .domain-score-card {
+      background: #FFFFFF;
+      border: 1px solid #D1DDE5;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .score-progress-bar {
+      height: 8px;
+      background: #E1E8ED;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .score-progress-fill {
+      height: 100%;
+      transition: width 0.5s ease;
+    }
+
+    .review-question-card {
+      background: #FFFFFF;
+      border: 1px solid #D1DDE5;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .review-question-card.correct {
+      border-left: 5px solid #00A972;
+    }
+
+    .review-question-card.incorrect {
+      border-left: 5px solid #D13438;
+    }
+
+    /* DARK MODE (Midnight Edition) para o Simulador Pearson VUE */
+    html[data-theme="dark"] #exam-mode-selection h1 {
+      color: #FFFFFF !important;
+    }
+
+    html[data-theme="dark"] #exam-mode-selection .subtitle {
+      color: #94A3B8 !important;
+    }
+
+    /* Painel de Questões */
+    html[data-theme="dark"] .exam-questions-panel {
+      background: #141E24 !important;
+      border-color: #253D47 !important;
+      color: #F8FAFC !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    html[data-theme="dark"] .exam-q-text,
+    html[data-theme="dark"] #exam-q-text {
+      color: #F8FAFC !important;
+    }
+
+    html[data-theme="dark"] .exam-q-number,
+    html[data-theme="dark"] #exam-q-number {
+      color: #94A3B8 !important;
+    }
+
+    /* Painel de Estudo de Caso (Split-Screen) */
+    html[data-theme="dark"] .case-study-panel,
+    html[data-theme="dark"] #exam-case-study-panel {
+      background: #141E24 !important;
+      border-color: #253D47 !important;
+      color: #E1E8ED !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    html[data-theme="dark"] #case-study-title {
+      background: #0B1217 !important;
+      color: #FFFFFF !important;
+      border-bottom: 1px solid #253D47 !important;
+    }
+
+    html[data-theme="dark"] .case-study-tabs {
+      background: #0B1217 !important;
+      border-bottom: 1px solid #253D47 !important;
+    }
+
+    html[data-theme="dark"] .case-tab-btn {
+      color: #8BA2AD !important;
+      background: transparent !important;
+    }
+
+    html[data-theme="dark"] .case-tab-btn:hover {
+      color: #FFFFFF !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+    }
+
+    html[data-theme="dark"] .case-tab-btn.active {
+      color: #FFFFFF !important;
+      border-bottom-color: #FF3621 !important;
+      background: rgba(255, 54, 33, 0.15) !important;
+    }
+
+    html[data-theme="dark"] .case-study-content,
+    html[data-theme="dark"] #case-study-tab-content {
+      background: #141E24 !important;
+      color: #D1DDE5 !important;
+    }
+
+    html[data-theme="dark"] .case-study-content h4,
+    html[data-theme="dark"] .case-study-content strong {
+      color: #FFFFFF !important;
+    }
+
+    html[data-theme="dark"] .case-study-content li,
+    html[data-theme="dark"] .case-study-content p {
+      color: #CBD5E1 !important;
+    }
+
+    /* Cards de Alternativas */
+    html[data-theme="dark"] .exam-option-card {
+      background: #18252C !important;
+      border-color: #283D4A !important;
+    }
+
+    html[data-theme="dark"] .exam-option-card:hover {
+      background: #20313B !important;
+      border-color: #0078D4 !important;
+    }
+
+    html[data-theme="dark"] .exam-option-card.selected {
+      background: rgba(255, 54, 33, 0.15) !important;
+      border-color: #FF3621 !important;
+      box-shadow: 0 2px 8px rgba(255, 54, 33, 0.25) !important;
+    }
+
+    html[data-theme="dark"] .exam-option-letter {
+      color: #FF7A59 !important;
+    }
+
+    html[data-theme="dark"] .exam-option-text {
+      color: #E1E8ED !important;
+    }
+
+    /* Ações de Navegação da Questão */
+    html[data-theme="dark"] .exam-nav-footer {
+      border-top-color: #253D47 !important;
+    }
+
+    html[data-theme="dark"] .btn-exam-action {
+      background: #1B2B33 !important;
+      border-color: #2D4653 !important;
+      color: #E1E8ED !important;
+    }
+
+    html[data-theme="dark"] .btn-exam-action:hover {
+      background: #253D47 !important;
+      border-color: #FF3621 !important;
+      color: #FFFFFF !important;
+    }
+
+    html[data-theme="dark"] #btn-exam-next {
+      background: #0078D4 !important;
+      border-color: #005A9E !important;
+      color: #FFFFFF !important;
+    }
+
+    html[data-theme="dark"] #btn-exam-next:hover {
+      background: #0060AA !important;
+    }
+
+    html[data-theme="dark"] .btn-finish-exam,
+    html[data-theme="dark"] #btn-finish-exam-top {
+      background: #FF3621 !important;
+      border-color: #E02916 !important;
+      color: #FFFFFF !important;
+    }
+
+    html[data-theme="dark"] .btn-finish-exam:hover,
+    html[data-theme="dark"] #btn-finish-exam-top:hover {
+      background: #E02916 !important;
+    }
+
+    html[data-theme="dark"] .btn-review-mark {
+      background: #1B2B33 !important;
+      border-color: #2D4653 !important;
+      color: #A0B0B9 !important;
+    }
+
+    html[data-theme="dark"] .btn-review-mark:hover {
+      background: #253D47 !important;
+      border-color: #3D5A68 !important;
+      color: #FFFFFF !important;
+    }
+
+    html[data-theme="dark"] .btn-review-mark.marked {
+      background: rgba(255, 189, 46, 0.2) !important;
+      border-color: #FFBD2E !important;
+      color: #FFD875 !important;
+    }
+
+    /* Paleta e Legenda do Mapa de Questões */
+    html[data-theme="dark"] .palette-grid {
+      background: #0B1217 !important;
+      border-color: #253D47 !important;
+    }
+
+    html[data-theme="dark"] .palette-btn {
+      background: #141E24 !important;
+      border-color: #2D4653 !important;
+      color: #D1DDE5 !important;
+    }
+
+    html[data-theme="dark"] .palette-btn:hover {
+      border-color: #FF5A36 !important;
+      background: #1B2B33 !important;
+    }
+
+    html[data-theme="dark"] .palette-btn.current {
+      outline-color: #0078D4 !important;
+      background: #20313B !important;
+      color: #FFFFFF !important;
+    }
+
+    html[data-theme="dark"] .palette-btn.answered {
+      background: #0078D4 !important;
+      color: #FFFFFF !important;
+      border-color: #0078D4 !important;
+    }
+
+    html[data-theme="dark"] .exam-palette-legend {
+      color: #94A3B8 !important;
+    }
+
+    html[data-theme="dark"] .legend-box-answered {
+      background: #0078D4 !important;
+    }
+
+    html[data-theme="dark"] .legend-box-blank {
+      background: #141E24 !important;
+      border: 1px solid #2D4653 !important;
+    }
+
+    html[data-theme="dark"] .legend-box-review {
+      background: rgba(255, 189, 46, 0.25) !important;
+      border-top: 3px solid #FFBD2E !important;
+    }
+
+    /* Cards de Seleção de Modo (Tela 1) */
+    html[data-theme="dark"] .mode-card {
+      background: #141E24 !important;
+      border-color: #253D47 !important;
+    }
+
+    html[data-theme="dark"] .mode-card:hover {
+      border-color: #FF5A36 !important;
+      background: #18252C !important;
+    }
+
+    html[data-theme="dark"] .mode-card.featured {
+      background: #18252C !important;
+      border-color: #FF3621 !important;
+    }
+
+    html[data-theme="dark"] .mode-title {
+      color: #F8FAFC !important;
+    }
+
+    html[data-theme="dark"] .mode-desc {
+      color: #8BA2AD !important;
+    }
+
+    html[data-theme="dark"] .mode-badge-pearson {
+      background: rgba(255, 54, 33, 0.18) !important;
+      color: #FF7A59 !important;
+    }
+
+    html[data-theme="dark"] .mode-badge-extended {
+      background: rgba(0, 120, 212, 0.18) !important;
+      color: #4BA2E8 !important;
+    }
+
+    html[data-theme="dark"] .mode-badge-exhaustive {
+      background: rgba(0, 169, 114, 0.18) !important;
+      color: #4EEDA8 !important;
+    }
+
+    html[data-theme="dark"] .mode-badge-corp {
+      background: rgba(147, 85, 237, 0.18) !important;
+      color: #C084FC !important;
+    }
+
+    html[data-theme="dark"] .mode-badge-domain {
+      background: rgba(255, 185, 0, 0.18) !important;
+      color: #FFD875 !important;
+    }
+
+    html[data-theme="dark"] .mode-badge-agile {
+      background: rgba(139, 162, 173, 0.18) !important;
+      color: #E1E8ED !important;
+    }
+
+    /* Tela de Resultados e Revisão de Questões (Tela 3) */
+    html[data-theme="dark"] .domain-score-card,
+    html[data-theme="dark"] .review-question-card {
+      background: #141E24 !important;
+      border-color: #253D47 !important;
+      color: #E1E8ED !important;
+    }
+
+    html[data-theme="dark"] .domain-score-card span {
+      color: #F8FAFC !important;
+    }
+
+    html[data-theme="dark"] .review-question-card h4,
+    html[data-theme="dark"] .review-question-card p {
+      color: #F8FAFC !important;
+    }
+
+    html[data-theme="dark"] .review-opt-row {
+      color: #E1E8ED !important;
+    }
+
+    html[data-theme="dark"] .review-opt-correct {
+      background: rgba(0, 169, 114, 0.15) !important;
+      border: 1px solid rgba(0, 169, 114, 0.35) !important;
+      color: #4EEDA8 !important;
+    }
+
+    html[data-theme="dark"] .review-opt-incorrect {
+      background: rgba(209, 52, 56, 0.15) !important;
+      border: 1px solid rgba(209, 52, 56, 0.35) !important;
+      color: #FF8587 !important;
+    }
+
+    html[data-theme="dark"] .review-badge-correct {
+      color: #4EEDA8 !important;
+    }
+
+    html[data-theme="dark"] .review-badge-incorrect {
+      color: #FF8587 !important;
+    }
+
+    html[data-theme="dark"] .review-badge-official {
+      color: #4EEDA8 !important;
+    }
+
+    html[data-theme="dark"] .review-opt-explanation {
+      color: #94A3B8 !important;
+    }
+
+    html[data-theme="dark"] .review-explanation-box {
+      background: #0B1217 !important;
+      border-left: 3px solid #0078D4 !important;
+      color: #D1DDE5 !important;
+    }
+
+    html[data-theme="dark"] .score-progress-bar {
+      background: #253D47 !important;
+    }
+  </style>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#simulados" class="active">Simulados Pearson VUE</a></li>
+      <li><a href="../reference/01-spark-and-databricks-architecture-visual-guide.html">Folhas de Referência</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Acesso Rápido:</span>
+      <a href="../lessons/0001-arquitetura-azure-databricks-compute-dbus.html" class="index-chip">Lição 0001</a>
+      <a href="../lessons/0007-unity-catalog-metastore-namespace-volumes.html" class="index-chip">Lição 0007 (Unity)</a>
+      <a href="../lessons/0010-ingestao-autoloader-copyinto-lakeflow.html" class="index-chip">Lição 0010 (Auto Loader)</a>
+      <a href="../lessons/0013-liquid-clustering-deletion-vectors-caching.html" class="index-chip">Lição 0013 (Liquid)</a>
+      <a href="../lessons/0014-delta-live-tables-streaming-views-expectations.html" class="index-chip">Lição 0014 (DLT)</a>
+      <a href="../lessons/0015-orquestracao-dabs-cicd-system-tables.html" class="index-chip">Lição 0015 (DABs)</a>
+      <a href="index.html" class="index-chip special active">Simulado Oficial (+180Q)</a>
+    </div>
+  </nav>
+
+  <main class="exam-container">
+
+    <!-- TELA 1: SELEÇÃO DE MODOS DE EXAME -->
+    <section id="exam-mode-selection">
+      <div style="margin-bottom: 2rem; text-align: center;">
+        <span style="font-size: 0.85rem; font-weight: 700; color: #FF3621; text-transform: uppercase; letter-spacing: 0.05em;">Centro Oficial Pearson VUE</span>
+        <h1 style="margin: 0.5rem 0 0.8rem 0;">Simulador do Exame Microsoft DP-750</h1>
+        <p class="subtitle" style="max-width: 800px; margin: 0 auto;">
+          Banco de dados massivo com mais de <strong>180 questões inéditas</strong> e <strong>8 Estudos de Caso Corporativos em Split-Screen</strong>, cobrindo com 100% de fidelidade a régua oficial de avaliação da Microsoft.
+        </p>
+      </div>
+
+      <div class="mode-card-grid">
+        <!-- Modo 1: Exame Oficial -->
+        <div class="mode-card featured">
+          <div>
+            <span class="mode-badge mode-badge-pearson" style="background: #FFE8E5; color: #C22212;">Padrão Pearson VUE</span>
+            <h3 class="mode-title">1. Exame Oficial Completo</h3>
+            <p class="mode-desc">
+              Simulação exata da prova oficial: <strong>55 questões sorteadas</strong>, <strong>100 minutos</strong> de tempo limite, estudos de caso e nota de corte rigorosa de <strong>700 / 1000</strong>.
+            </p>
+          </div>
+          <button class="btn-exam-action btn-finish-exam btn-start-mode" data-mode="official" style="width: 100%;">
+            Iniciar Exame Oficial (55Q • 100m)
+          </button>
+        </div>
+
+        <!-- Modo 2: Maratona Estendida -->
+        <div class="mode-card">
+          <div>
+            <span class="mode-badge mode-badge-extended" style="background: #EBF4FC; color: #005A9E;">Desafio Estendido</span>
+            <h3 class="mode-title">2. Maratona Estendida</h3>
+            <p class="mode-desc">
+              Ideal para fins de semana de imersão: <strong>90 questões sorteadas</strong> cobrindo profundamente os 4 domínios com 160 minutos de cronômetro.
+            </p>
+          </div>
+          <button class="btn-exam-action btn-start-mode" data-mode="marathon" style="width: 100%;">
+            Iniciar Maratona (90Q • 160m)
+          </button>
+        </div>
+
+        <!-- Modo 3: Banco Completo -->
+        <div class="mode-card">
+          <div>
+            <span class="mode-badge mode-badge-exhaustive" style="background: #E6F8EE; color: #00703C;">Exaustivo</span>
+            <h3 class="mode-title">3. Modo Banco Completo (+180Q)</h3>
+            <p class="mode-desc">
+              Pratique absolutamente todas as 184 questões disponíveis no banco de dados para garantir pontuação máxima e gabarito em todas as áreas.
+            </p>
+          </div>
+          <button class="btn-exam-action btn-start-mode" data-mode="full" style="width: 100%;">
+            Iniciar Todas as 184 Questões
+          </button>
+        </div>
+
+        <!-- Modo 4: Estudos de Caso Split-Screen -->
+        <div class="mode-card">
+          <div>
+            <span class="mode-badge mode-badge-corp" style="background: #F3EAFD; color: #5C2D91;">Arquitetura Corporativa</span>
+            <h3 class="mode-title">4. Modo Estudos de Caso Split-Screen</h3>
+            <p class="mode-desc">
+              Treino focado exclusivamente nos <strong>8 Estudos de Caso Corporativos</strong> com painel duplo (Visão Geral, Arquitetura, Requisitos, Segurança e Problemas).
+            </p>
+          </div>
+          <button class="btn-exam-action btn-start-mode" data-mode="case-studies" style="width: 100%;">
+            Praticar Estudos de Caso Split-Screen
+          </button>
+        </div>
+
+        <!-- Modo 5: Treino por Domínio Específico -->
+        <div class="mode-card">
+          <div>
+            <span class="mode-badge mode-badge-domain" style="background: #FEF7E6; color: #8A5F00;">Treino Direcionado</span>
+            <h3 class="mode-title">5. Treino por Domínio</h3>
+            <p class="mode-desc">
+              Isole e resolva suas lacunas técnicas em um domínio específico do exame:
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem;">
+              <button class="btn-exam-action btn-start-mode" data-mode="domain" data-domain="1" style="font-size: 0.8rem; text-align: left;">
+                Domínio 1: Configurar o Ambiente (38Q)
+              </button>
+              <button class="btn-exam-action btn-start-mode" data-mode="domain" data-domain="2" style="font-size: 0.8rem; text-align: left;">
+                Domínio 2: Segurança &amp; Unity Catalog (38Q)
+              </button>
+              <button class="btn-exam-action btn-start-mode" data-mode="domain" data-domain="3" style="font-size: 0.8rem; text-align: left;">
+                Domínio 3: Ingestão &amp; Processamento (54Q)
+              </button>
+              <button class="btn-exam-action btn-start-mode" data-mode="domain" data-domain="4" style="font-size: 0.8rem; text-align: left;">
+                Domínio 4: Pipelines &amp; Workflows (54Q)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modo 6: Revisão Rápida com Feedback Imediato -->
+        <div class="mode-card">
+          <div>
+            <span class="mode-badge mode-badge-agile" style="background: #F1F5F8; color: #1B3139;">Estudo Ágil</span>
+            <h3 class="mode-title">6. Revisão Rápida (Feedback Imediato)</h3>
+            <p class="mode-desc">
+              25 questões com revelação imediata da resposta correta e explicação da arquitetura assim que você seleciona a alternativa.
+            </p>
+          </div>
+          <button class="btn-exam-action btn-start-mode" data-mode="quick-review" style="width: 100%;">
+            Iniciar Revisão Rápida (25Q)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TELA 2: SESSÃO DE EXAME ATIVA -->
+    <section id="exam-active-screen" style="display: none;">
+      <!-- Barra Superior do Exame Ativo -->
+      <div class="exam-top-bar">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; color: #8BA2AD; letter-spacing: 0.05em;">Microsoft Certified: DP-750</span>
+          <div style="font-weight: 700; font-size: 1.1rem;" id="exam-q-domain-badge">Domínio Oficial</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+          <div class="exam-timer">
+            <span>⏱️</span>
+            <span id="exam-timer-display">100:00</span>
+          </div>
+          <button class="btn-exam-action btn-finish-exam" id="btn-finish-exam-top">Entregar Exame</button>
+        </div>
+      </div>
+
+      <!-- Layout Split-Screen (Estudo de Caso Esquerdo + Questão Direita) -->
+      <div class="exam-split-grid" id="exam-split-layout">
+        
+        <!-- Painel Esquerdo: Estudo de Caso (se houver) -->
+        <div class="case-study-panel" id="exam-case-study-panel" style="display: none;">
+          <div style="padding: 1rem 1.2rem; background: #111E24; color: #FFFFFF; font-weight: 700; font-size: 0.95rem;" id="case-study-title">
+            Estudo de Caso Corporativo
+          </div>
+          <div class="case-study-tabs" id="case-study-tabs-bar">
+            <!-- Abas geradas dinamicamente -->
+          </div>
+          <div class="case-study-content" id="case-study-tab-content">
+            <!-- Texto da aba selecionada -->
+          </div>
+        </div>
+
+        <!-- Painel Direito: Questão & Alternativas -->
+        <div class="exam-questions-panel" id="exam-question-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+            <span class="exam-q-number" id="exam-q-number">Questão 1 de 55</span>
+            <button class="btn-review-mark" id="btn-mark-review">🏳️ Marcar para Revisão</button>
+          </div>
+
+          <div class="exam-q-text" id="exam-q-text">
+            Texto do enunciado da questão...
+          </div>
+
+          <!-- Alternativas -->
+          <div id="exam-options-container">
+            <!-- Labels com input rádio ou checkbox gerados via JS -->
+          </div>
+
+          <!-- Feedback Imediato (Apenas Modo Quick Review) -->
+          <div id="exam-immediate-feedback" class="flash-feedback-box" style="display: none;"></div>
+
+          <!-- Botões de Navegação Inferior -->
+          <div class="exam-nav-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 1.5rem; border-top: 1px solid #E1E8ED;">
+            <button class="btn-exam-action" id="btn-exam-prev">← Questão Anterior</button>
+            <button class="btn-exam-action" id="btn-exam-next" style="background: #0078D4; border-color: #005A9E;">Próxima Questão →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paleta de Navegação Rápida de Questões -->
+      <div style="margin-top: 2rem;">
+        <div class="exam-palette-legend" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; margin-bottom: 0.5rem;">
+          <span><strong>Mapa de Questões:</strong> Clique para saltar diretamente para qualquer questão</span>
+          <div style="display: flex; gap: 1rem;">
+            <span><span class="legend-color-box legend-box-answered" style="display: inline-block; width: 12px; height: 12px; background: #0078D4; border-radius: 2px;"></span> Respondida</span>
+            <span><span class="legend-color-box legend-box-blank" style="display: inline-block; width: 12px; height: 12px; background: #FFFFFF; border: 1px solid #BDCBD3; border-radius: 2px;"></span> Em Branco</span>
+            <span><span class="legend-color-box legend-box-review" style="display: inline-block; width: 12px; height: 12px; background: #FFF3C4; border-top: 3px solid #FFBD2E; border-radius: 2px;"></span> Revisão</span>
+          </div>
+        </div>
+        <div class="palette-grid" id="exam-palette-grid">
+          <!-- Botões 1..N gerados via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TELA 3: RELATÓRIO FINAL DE RESULTADOS & GABARITO -->
+    <section id="exam-results-screen" style="display: none;">
+      <div id="exam-result-banner" class="exam-result-banner passed">
+        <!-- Preenchido dinamicamente -->
+      </div>
+
+      <div style="margin: 2.5rem 0;">
+        <h2>📊 Desempenho Detalhado por Domínio Oficial</h2>
+        <div id="exam-domain-breakdown">
+          <!-- Cards de domínio -->
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 1rem; margin-bottom: 2.5rem;">
+        <button class="btn-exam-action" id="btn-restart-exam" style="background: #1B3139; padding: 0.75rem 1.5rem; font-size: 0.95rem;">
+          🔄 Iniciar Novo Simulado
+        </button>
+        <a href="../reference/01-spark-and-databricks-architecture-visual-guide.html" class="btn-exam-action" style="background: #0078D4; padding: 0.75rem 1.5rem; font-size: 0.95rem; text-decoration: none; display: inline-block;">
+          📖 Revisar Folhas de Referência Rápida
+        </a>
+      </div>
+
+      <div style="margin-top: 3rem;">
+        <h2>📝 Gabarito Comentado e Revisão Completa</h2>
+        <p style="color: #536B75; font-size: 0.9rem;">
+          Analise a justificativa técnica detalhada de cada questão respondida para consolidar seu aprendizado:
+        </p>
+        <div id="exam-full-review-list">
+          <!-- Lista de revisão -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="../assets/exam-questions.js"></script>
+  <script src="../assets/exam-simulator.js"></script>
+</body>
+</html>
+

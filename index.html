@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Databricks Formation — Prepare to DP-750 | Guia Oficial Interativo</title>
+  <meta name="description" content="Plataforma de preparação de alta performance para o exame oficial Microsoft DP-750: Implementing Data Engineering Solutions Using Azure Databricks. 15 Lições Multi-Lente, 15 Labs Python, 6 Folhas de Referência e +180 questões Pearson VUE.">
+  <link rel="stylesheet" href="assets/tufte.css">
+  <link rel="stylesheet" href="assets/vark.css">
+  <script src="assets/lens.js"></script>
+  <style>
+    .portal-hero {
+      background: linear-gradient(135deg, #111E24 0%, #1B3139 60%, #0E171D 100%);
+      color: #FFFFFF;
+      padding: 3.5rem 2rem 4rem 2rem;
+      border-bottom: 3px solid #FF3621;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .portal-hero::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(255, 54, 33, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 54, 33, 0.2);
+      border: 1px solid #FF3621;
+      color: #FF5A36;
+      padding: 0.35rem 0.9rem;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+
+    .hero-title {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin: 0 auto 1rem auto;
+      letter-spacing: -0.02em;
+      max-width: 900px;
+      line-height: 1.2;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem;
+      color: #C5D1D6;
+      max-width: 780px;
+      margin: 0 auto 2rem auto;
+      line-height: 1.6;
+    }
+
+    .hero-stats-grid {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+
+    .hero-stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      min-width: 140px;
+    }
+
+    .hero-stat-number {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #FF3621;
+      font-family: var(--font-mono);
+    }
+
+    .hero-stat-label {
+      font-size: 0.78rem;
+      color: #A3B8C2;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.2rem;
+    }
+
+    .module-nav-bar {
+      background: #FFFFFF;
+      border: 1px solid #D1DDE5;
+      border-radius: 12px;
+      margin: 1.5rem auto 1rem auto;
+      padding: 0.6rem 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      justify-content: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      max-width: 1380px;
+    }
+
+    .module-nav-link {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #1B3139;
+      text-decoration: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      font-family: var(--font-sans);
+    }
+
+    .module-nav-link:hover {
+      background: #FFF0ED;
+      color: #FF3621;
+    }
+
+    html[data-theme="dark"] .module-nav-bar {
+      background: #141E24 !important;
+      border-color: #253D47 !important;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3) !important;
+    }
+
+    html[data-theme="dark"] .module-nav-link {
+      color: #D1DDE5 !important;
+    }
+
+    html[data-theme="dark"] .module-nav-link:hover {
+      background: #1B2B33 !important;
+      color: #FF5A36 !important;
+    }
+
+    /* Regras Dark Mode para os cards das Lições */
+    html[data-theme="dark"] .lesson-card {
+      background: #141E24 !important;
+      border-color: #253D47 !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    html[data-theme="dark"] .lesson-card:hover {
+      border-color: #FF5A36 !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    html[data-theme="dark"] .lesson-number-badge {
+      color: #FF5A36 !important;
+    }
+
+    html[data-theme="dark"] .lesson-card-title {
+      color: #F8FAFC !important;
+    }
+
+    html[data-theme="dark"] .lesson-card-desc {
+      color: #94A3B8 !important;
+    }
+
+    html[data-theme="dark"] .vark-chip-mini {
+      background: #1B2B33 !important;
+      color: #CBD5E1 !important;
+      border: 1px solid #2D4653 !important;
+    }
+
+    html[data-theme="dark"] .lesson-card-footer {
+      border-top-color: #253D47 !important;
+    }
+
+    html[data-theme="dark"] .btn-access-lesson {
+      background: #1B2B33 !important;
+      border-top-color: #253D47 !important;
+      color: #00E5CF !important;
+    }
+
+    html[data-theme="dark"] .btn-access-lesson:hover {
+      background: #FF3621 !important;
+      color: #FFFFFF !important;
+    }
+  </style>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#modulo-0">Currículo</a></li>
+      <li><a href="simulados/index.html">Simulados (+180Q)</a></li>
+      <li><a href="#referencias">Folhas de Referência</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Índice Rápido:</span>
+      <a href="lessons/0001-arquitetura-azure-databricks-compute-dbus.html" class="index-chip">0001</a>
+      <a href="lessons/0002-anatomia-apache-spark-catalyst-photon.html" class="index-chip">0002</a>
+      <a href="lessons/0003-protocolo-delta-lake-acid-time-travel.html" class="index-chip">0003</a>
+      <a href="lessons/0004-workspaces-entra-id-vnet-private-link.html" class="index-chip">0004</a>
+      <a href="lessons/0005-clusters-policies-pools-serverless-sql.html" class="index-chip">0005</a>
+      <a href="lessons/0006-integracao-azure-keyvault-adls-external.html" class="index-chip">0006</a>
+      <a href="lessons/0007-unity-catalog-metastore-namespace-volumes.html" class="index-chip">0007</a>
+      <a href="lessons/0008-controle-acesso-fino-row-column-masks.html" class="index-chip">0008</a>
+      <a href="lessons/0009-linhagem-system-tables-delta-sharing.html" class="index-chip">0009</a>
+      <a href="lessons/0010-ingestao-autoloader-copyinto-lakeflow.html" class="index-chip">0010</a>
+      <a href="lessons/0011-medallion-pyspark-sparksql-scd1-scd2.html" class="index-chip">0011</a>
+      <a href="lessons/0012-structured-streaming-watermark-joins.html" class="index-chip">0012</a>
+      <a href="lessons/0013-liquid-clustering-deletion-vectors-caching.html" class="index-chip">0013</a>
+      <a href="lessons/0014-delta-live-tables-streaming-views-expectations.html" class="index-chip">0014</a>
+      <a href="lessons/0015-orquestracao-dabs-cicd-system-tables.html" class="index-chip">0015</a>
+      <a href="simulados/index.html" class="index-chip special">Simulado Pearson VUE (+180Q)</a>
+      <a href="#referencias" class="index-chip">6 Folhas Ref</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="portal-hero">
+    <div class="hero-badge-tag">Microsoft Certified: Azure Databricks Data Engineer Associate</div>
+    <h1 class="hero-title">Databricks Formation — Prepare to DP-750</h1>
+    <p class="hero-subtitle">
+      A plataforma definitiva para aprovação de primeira no exame <strong>Microsoft Exam DP-750</strong>. Arquitetura Multi-Lente (6 Níveis de Profundidade), metodologia de aprendizagem multissensorial integrada, simulador Pearson VUE e <strong>Hands-on Labs Passo a Passo no padrão oficial Microsoft Learn</strong> (executados diretamente no seu workspace Azure Databricks alocado na Azure).
+    </p>
+    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+      <a href="lessons/0001-arquitetura-azure-databricks-compute-dbus.html" style="background: #FF3621; color: #FFFFFF; padding: 0.8rem 1.8rem; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 0.95rem;">
+        🚀 Começar da Lição 0001
+      </a>
+      <a href="simulados/index.html" style="background: #0078D4; color: #FFFFFF; padding: 0.8rem 1.8rem; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 0.95rem;">
+        🎯 Simulado Pearson VUE (+180Q)
+      </a>
+    </div>
+    <div class="hero-stats-grid">
+      <div class="hero-stat-card">
+        <div class="hero-stat-number">15</div>
+        <div class="hero-stat-label">Lições Multi-Lente</div>
+      </div>
+      <div class="hero-stat-card">
+        <div class="hero-stat-number">15</div>
+        <div class="hero-stat-label">Labs Python Locais</div>
+      </div>
+      <div class="hero-stat-card">
+        <div class="hero-stat-number">+180</div>
+        <div class="hero-stat-label">Questões Comentadas</div>
+      </div>
+      <div class="hero-stat-card">
+        <div class="hero-stat-number">8</div>
+        <div class="hero-stat-label">Estudos de Caso Split-Screen</div>
+      </div>
+      <div class="hero-stat-card">
+        <div class="hero-stat-number">6</div>
+        <div class="hero-stat-label">Folhas de Referência</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sticky Module Anchor Navigation -->
+  <nav class="module-nav-bar">
+    <a href="#modulo-0" class="module-nav-link">Módulo 0: Fundamentos Lakehouse</a>
+    <a href="#modulo-1" class="module-nav-link">Módulo 1: Ambiente Azure Databricks (15-20%)</a>
+    <a href="#modulo-2" class="module-nav-link">Módulo 2: Unity Catalog (15-20%)</a>
+    <a href="#modulo-3" class="module-nav-link">Módulo 3: Batch &amp; Streaming (30-35%)</a>
+    <a href="#modulo-4" class="module-nav-link">Módulo 4: Pipelines &amp; Workloads (30-35%)</a>
+    <a href="#simulados" class="module-nav-link" style="color: #FF3621; font-weight: 700;">Simulados Pearson VUE</a>
+    <a href="#referencias" class="module-nav-link" style="color: #0078D4; font-weight: 700;">Folhas de Referência</a>
+  </nav>
+
+  <!-- Banner de Pré-requisito da Azure para os Hands-on Labs -->
+  <div style="max-width: 1380px; margin: 0 auto; padding: 0 1.5rem;">
+    <div class="azure-prereq-alert">
+      <span class="alert-icon">☁️</span>
+      <div>
+        <h4>
+          AMBIENTE PRÁTICO REQUERIDO (Padrão Oficial Microsoft Learn)
+        </h4>
+        <p>
+          Os <strong>15 Laboratórios Práticos</strong> desta plataforma são exercícios passo a passo reais no formato Microsoft Learn. Para executá-los e testar os comandos PySpark, criar pipelines Delta Live Tables (DLT), orquestrar Jobs no Databricks Workflows e configurar o Unity Catalog, <strong>você precisará de um Workspace do Azure Databricks alocado na sua assinatura do Microsoft Azure</strong> (Recomendado tier Premium com Unity Catalog habilitado).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <main style="max-width: 1380px; margin: 0 auto; padding: 2rem 1.5rem;">
+
+    <!-- MÓDULO 0 -->
+    <section class="module-section" id="modulo-0">
+      <div class="module-header">
+        <h2 class="module-title">📦 Módulo 0: Fundamentos de Apache Spark, Delta Lake &amp; Lakehouse</h2>
+        <div class="module-desc">Base conceitual obrigatória de arquitetura distribuída, motor Photon e protocolo transacional Delta Log.</div>
+      </div>
+      <div class="lessons-grid">
+        
+        <!-- Lição 0001 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0001 • Base</span>
+            <h3 class="lesson-card-title">Arquitetura Azure Databricks, Control vs Compute Plane &amp; DBUs</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Domine a segregação de planos, modelo de cobrança por DBUs, e as diferenças essenciais entre Classic e Serverless Compute.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Diagrama SVG</span>
+              <span class="vark-chip-mini">🛠️ Simulador DBUs</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0001-arquitetura-azure-databricks-compute-dbus.html" class="btn-access-lesson">Acessar Lição 0001 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0002 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0002 • Base</span>
+            <h3 class="lesson-card-title">Anatomia do Apache Spark, Catalyst Optimizer &amp; Photon Engine</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Driver, Workers, Executors, Shuffles, estágios do Catalyst Optimizer e aceleração SIMD C++ com Photon.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ DAG Spark</span>
+              <span class="vark-chip-mini">🛠️ Lab Catalyst</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0002-anatomia-apache-spark-catalyst-photon.html" class="btn-access-lesson">Acessar Lição 0002 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0003 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0003 • Base</span>
+            <h3 class="lesson-card-title">Protocolo Delta Lake, Log Transacional (_delta_log) &amp; ACID</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Arquitetura de commits JSON, checkpoints Parquet, Time Travel por versão/data, Schema Evolution e manutenção com OPTIMIZE/VACUUM.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Log Transacional</span>
+              <span class="vark-chip-mini">🛠️ Lab Time Travel</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0003-protocolo-delta-lake-acid-time-travel.html" class="btn-access-lesson">Acessar Lição 0003 →</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- MÓDULO 1 -->
+    <section class="module-section" id="modulo-1">
+      <div class="module-header">
+        <h2 class="module-title">🏛️ Módulo 1: Configurar o Ambiente Azure Databricks (15–20% do Exame)</h2>
+        <div class="module-desc">Provisionamento de infraestrutura, integração de identidades corporativas Entra ID, redes seguras VNet e FinOps de clusters.</div>
+      </div>
+      <div class="lessons-grid">
+
+        <!-- Lição 0004 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0004 • Domínio 1</span>
+            <h3 class="lesson-card-title">Workspaces, Microsoft Entra ID (SCIM) &amp; Rede Segura (VNet/Private Link)</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">VNet Injection com duas subnets /26, provisionamento SCIM no Account Console e Private Endpoints front-end e back-end.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ VNet Topology</span>
+              <span class="vark-chip-mini">🛠️ Lab VNet CIDR</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0004-workspaces-entra-id-vnet-private-link.html" class="btn-access-lesson">Acessar Lição 0004 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0005 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0005 • Domínio 1</span>
+            <h3 class="lesson-card-title">Governança de Computação: Cluster Policies, Pools &amp; Serverless SQL</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Imposição de limites de autotermination via JSON, Instance Pools para warm start e escalonamento de SQL Warehouses.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Cluster Policies</span>
+              <span class="vark-chip-mini">🛠️ Lab Policy JSON</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0005-clusters-policies-pools-serverless-sql.html" class="btn-access-lesson">Acessar Lição 0005 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0006 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0006 • Domínio 1</span>
+            <h3 class="lesson-card-title">Integração Azure: Key Vault Secret Scopes &amp; ADLS Gen2</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Recuperação segura com dbutils.secrets.get(), Storage Credentials com Azure Managed Identity e conexão com Azure Data Factory.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Key Vault Flow</span>
+              <span class="vark-chip-mini">🛠️ Lab Secret Scope</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0006-integracao-azure-keyvault-adls-external.html" class="btn-access-lesson">Acessar Lição 0006 →</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- MÓDULO 2 -->
+    <section class="module-section" id="modulo-2">
+      <div class="module-header">
+        <h2 class="module-title">🛡️ Módulo 2: Segurança e Governança com Unity Catalog (15–20% do Exame)</h2>
+        <div class="module-desc">Centralização de metadados, controle de acesso fino (Row &amp; Column Masks), observabilidade e compartilhamento seguro.</div>
+      </div>
+      <div class="lessons-grid">
+
+        <!-- Lição 0007 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0007 • Domínio 2</span>
+            <h3 class="lesson-card-title">Unity Catalog: Metastore, 3-Level Namespace &amp; Volumes</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Estrutura catalog.schema.table, Managed Tables vs External Tables e governança de arquivos não estruturados com Volumes.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Namespace Tree</span>
+              <span class="vark-chip-mini">🛠️ Lab 3-Level FQDN</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0007-unity-catalog-metastore-namespace-volumes.html" class="btn-access-lesson">Acessar Lição 0007 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0008 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0008 • Domínio 2</span>
+            <h3 class="lesson-card-title">Controle de Acesso Fino: Privilégios Hierárquicos, Row Filters &amp; Column Masks</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Regras de herança GRANT/REVOKE, SQL UDFs para mascaramento de PII e restrição territorial de linhas com is_account_group_member().</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Security Filters</span>
+              <span class="vark-chip-mini">🛠️ Lab Masking SQL</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0008-controle-acesso-fino-row-column-masks.html" class="btn-access-lesson">Acessar Lição 0008 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0009 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0009 • Domínio 2</span>
+            <h3 class="lesson-card-title">Linhagem Automatizada, Auditoria com System Tables &amp; Delta Sharing</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Linhagem ponta a ponta (coluna e tabela), consultas SQL em system.access.audit / billing.usage e compartilhamento aberto Delta Sharing.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Lineage Graph</span>
+              <span class="vark-chip-mini">🛠️ Lab System Tables</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0009-linhagem-system-tables-delta-sharing.html" class="btn-access-lesson">Acessar Lição 0009 →</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- MÓDULO 3 -->
+    <section class="module-section" id="modulo-3">
+      <div class="module-header">
+        <h2 class="module-title">⚙️ Módulo 3: Preparar e Processar Dados em Batch e Streaming (30–35% do Exame)</h2>
+        <div class="module-desc">O maior peso do exame: Auto Loader, Medallion, transformações complexas, SCD2, Structured Streaming e Liquid Clustering.</div>
+      </div>
+      <div class="lessons-grid">
+
+        <!-- Lição 0010 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0010 • Domínio 3</span>
+            <h3 class="lesson-card-title">Ingestão Escalável: Auto Loader (Cloud Files), COPY INTO &amp; Lakeflow</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Ingestão contínua de milhões de arquivos, Schema Evolution assíncrona, coluna _rescued_data e matriz de decisão para prova.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Cloud Files Flow</span>
+              <span class="vark-chip-mini">🛠️ Lab Rescued Data</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0010-ingestao-autoloader-copyinto-lakeflow.html" class="btn-access-lesson">Acessar Lição 0010 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0011 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0011 • Domínio 3</span>
+            <h3 class="lesson-card-title">Arquitetura Medallion: PySpark, Spark SQL &amp; MERGE (SCD1 e SCD2)</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Camadas Bronze, Silver e Gold, funções de janela para deduplicação e comandos MERGE INTO avançados com histórico vigencial.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Medallion Pipeline</span>
+              <span class="vark-chip-mini">🛠️ Lab MERGE SCD2</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0011-medallion-pyspark-sparksql-scd1-scd2.html" class="btn-access-lesson">Acessar Lição 0011 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0012 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0012 • Domínio 3</span>
+            <h3 class="lesson-card-title">Engenharia em Tempo Real: Structured Streaming, Watermarking &amp; Joins</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Checkpointing para semântica exactly-once, withWatermark() para controle de memória, janelas temporais e triggers availableNow.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Watermark Window</span>
+              <span class="vark-chip-mini">🛠️ Lab Streaming State</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0012-structured-streaming-watermark-joins.html" class="btn-access-lesson">Acessar Lição 0012 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0013 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0013 • Domínio 3</span>
+            <h3 class="lesson-card-title">Otimização Física: Liquid Clustering vs Particionamento &amp; Deletion Vectors</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">CLUSTER BY substituindo Hive e Z-Order, Deletion Vectors para mutações instantâneas e Predictive Optimization do Unity Catalog.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Liquid Clustering</span>
+              <span class="vark-chip-mini">🛠️ Lab Deletion Vector</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0013-liquid-clustering-deletion-vectors-caching.html" class="btn-access-lesson">Acessar Lição 0013 →</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- MÓDULO 4 -->
+    <section class="module-section" id="modulo-4">
+      <div class="module-header">
+        <h2 class="module-title">🚀 Módulo 4: Implantar e Manter Pipelines e Workloads (30–35% do Exame)</h2>
+        <div class="module-desc">Automação de alto nível com Delta Live Tables (DLT), orquestração de Workflows, Databricks Asset Bundles (DABs) e CI/CD.</div>
+      </div>
+      <div class="lessons-grid">
+
+        <!-- Lição 0014 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0014 • Domínio 4</span>
+            <h3 class="lesson-card-title">Pipelines Declarativos com Delta Live Tables (DLT) &amp; Expectations</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Streaming Tables, Materialized Views, governança de qualidade (EXPECT, DROP, FAIL) e CDC nativo com apply_changes().</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ DLT Pipeline DAG</span>
+              <span class="vark-chip-mini">🛠️ Lab DLT Rules</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0014-delta-live-tables-streaming-views-expectations.html" class="btn-access-lesson">Acessar Lição 0014 →</a>
+          </div>
+        </div>
+
+        <!-- Lição 0015 -->
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge">Lição 0015 • Domínio 4</span>
+            <h3 class="lesson-card-title">Orquestração em Produção: Databricks Workflows, DABs &amp; CI/CD</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Multi-Task DAGs, Task Values, Repair Run de etapas com falha, Databricks Asset Bundles (databricks.yml) e diagnóstico de Spill na Spark UI.</p>
+            <div class="lesson-vark-chips">
+              <span class="vark-chip-mini">🎧 Áudio PT-BR</span>
+              <span class="vark-chip-mini">👁️ Workflow DAG UI</span>
+              <span class="vark-chip-mini">🛠️ Lab DABs Manifest</span>
+            </div>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="lessons/0015-orquestracao-dabs-cicd-system-tables.html" class="btn-access-lesson">Acessar Lição 0015 →</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SEÇÃO DE SIMULADOS PEARSON VUE -->
+    <section class="module-section simulados-banner-section" id="simulados">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <span style="font-size: 0.85rem; font-weight: 800; color: #FF3621; text-transform: uppercase;">Treinamento Oficial Pearson VUE</span>
+          <h2 style="margin: 0.2rem 0; font-size: 2rem; border: none; padding: 0;">Centro Oficial de Simulados (+180 Questões)</h2>
+          <p style="margin: 0; font-size: 0.95rem;">
+            Teste seus conhecimentos sob a pressão do tempo real com 6 modos de exame, 8 Estudos de Caso Split-Screen e embaralhamento total Fisher-Yates.
+          </p>
+        </div>
+        <a href="simulados/index.html" style="background: #FF3621; color: #FFFFFF; padding: 0.85rem 1.8rem; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 1rem; box-shadow: 0 4px 12px rgba(255,54,33,0.25);">
+          🎯 Abrir Simulador Pearson VUE →
+        </a>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+        <div class="simulados-feature-card">
+          <strong style="display: block; margin-bottom: 0.3rem;">⏱️ 55 Questões • 100 Minutos</strong>
+          <div style="font-size: 0.85rem; opacity: 0.85;">Simulação exata do exame com nota de corte oficial 700 / 1000.</div>
+        </div>
+        <div class="simulados-feature-card">
+          <strong style="display: block; margin-bottom: 0.3rem;">📑 8 Estudos de Caso Split-Screen</strong>
+          <div style="font-size: 0.85rem; opacity: 0.85;">Cenários corporativos complexos com abas de arquitetura e requisitos.</div>
+        </div>
+        <div class="simulados-feature-card">
+          <strong style="display: block; margin-bottom: 0.3rem;">🔀 Fisher-Yates Shuffle</strong>
+          <div style="font-size: 0.85rem; opacity: 0.85;">Embaralhamento contínuo para evitar vício de alternativas.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO DE FOLHAS DE REFERÊNCIA -->
+    <section class="module-section" id="referencias">
+      <div class="module-header">
+        <h2 class="module-title">📑 6 Folhas de Referência Rápida (Cheat Sheets de Alta Densidade)</h2>
+        <div class="module-desc">Resumos executivos, matrizes de trade-offs e trechos de código para revisão rápida pré-exame.</div>
+      </div>
+      <div class="lessons-grid">
+        
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge" style="color: #0078D4;">Folha 01 • Arquitetura</span>
+            <h3 class="lesson-card-title">Arquitetura Spark, Catalyst &amp; Photon</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Control vs Compute Plane, estágios do Catalyst, Photon C++ e matriz de tipos de cluster.</p>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="reference/01-spark-and-databricks-architecture-visual-guide.html" class="btn-access-lesson">Abrir Folha 01 →</a>
+          </div>
+        </div>
+
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge" style="color: #0078D4;">Folha 02 • Governança</span>
+            <h3 class="lesson-card-title">Unity Catalog: Namespace, ACLs &amp; Masks</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Namespace 3-Level, privilégios GRANT/REVOKE, Row Filters, Column Masks e Delta Sharing.</p>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="reference/02-unity-catalog-security-and-governance-guide.html" class="btn-access-lesson">Abrir Folha 02 →</a>
+          </div>
+        </div>
+
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge" style="color: #0078D4;">Folha 03 • Ingestão</span>
+            <h3 class="lesson-card-title">Matriz: Auto Loader vs COPY INTO vs DLT</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Critérios de escolha de tecnologias de ingestão, schema evolution e coluna _rescued_data.</p>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="reference/03-ingestion-autoloader-and-dlt-decision-matrix.html" class="btn-access-lesson">Abrir Folha 03 →</a>
+          </div>
+        </div>
+
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge" style="color: #0078D4;">Folha 04 • PySpark &amp; SQL</span>
+            <h3 class="lesson-card-title">PySpark, Window Functions &amp; MERGE SCD2</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Deduplicação com row_number(), MERGE de Slowly Changing Dimensions e tratamento de JSON.</p>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="reference/04-pyspark-and-spark-sql-engineering-cheatsheet.html" class="btn-access-lesson">Abrir Folha 04 →</a>
+          </div>
+        </div>
+
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge" style="color: #0078D4;">Folha 05 • Performance</span>
+            <h3 class="lesson-card-title">Liquid Clustering &amp; Diagnóstico de Spill</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">CLUSTER BY vs Particionamento Hive, Deletion Vectors e resolução de Skew/Spill na Spark UI.</p>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="reference/05-delta-lake-liquid-clustering-and-tuning-guide.html" class="btn-access-lesson">Abrir Folha 05 →</a>
+          </div>
+        </div>
+
+        <div class="lesson-card">
+          <div class="lesson-card-header">
+            <span class="lesson-number-badge" style="color: #0078D4;">Folha 06 • CI/CD &amp; DABs</span>
+            <h3 class="lesson-card-title">Databricks Asset Bundles &amp; System Tables</h3>
+          </div>
+          <div class="lesson-card-body">
+            <p class="lesson-card-desc">Manifesto databricks.yml, comandos CLI bundle, Repair Run e queries SQL em system.billing.usage.</p>
+          </div>
+          <div class="lesson-card-footer">
+            <a href="reference/06-workflows-dabs-cicd-and-system-tables-cheatsheet.html" class="btn-access-lesson">Abrir Folha 06 →</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer style="background: #111E24; color: #8BA2AD; padding: 2.5rem 1.5rem; text-align: center; font-family: var(--font-sans); border-top: 1px solid #2D444E;">
+    <div style="max-width: 900px; margin: 0 auto;">
+      <p style="color: #FFFFFF; font-weight: 700; margin-bottom: 0.5rem;">Databricks Formation — Prepare to DP-750</p>
+      <p style="font-size: 0.85rem; line-height: 1.6;">
+        Material educacional independente projetado para o exame oficial Microsoft Certified: Azure Databricks Data Engineer Associate (Exam DP-750). Não afiliado oficialmente à Microsoft ou Databricks.
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>
+

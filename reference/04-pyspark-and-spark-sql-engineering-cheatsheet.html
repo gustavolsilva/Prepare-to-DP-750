@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folha 04: Cheatsheet de Engenharia: PySpark, Spark SQL & MERGE SCD2 | Databricks Formation DP-750</title>
+  <meta name="description" content="Transformações essenciais, Window Functions para deduplicação, tratamento de JSON aninhado e MERGE INTO para SCD Tipo 1 e Tipo 2.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#referencias" class="active">Folhas de Referência</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Folhas Rápidas:</span>
+      <a href="01-spark-and-databricks-architecture-visual-guide.html" class="index-chip ">01 Arquitetura</a>
+      <a href="02-unity-catalog-security-and-governance-guide.html" class="index-chip ">02 Unity Catalog</a>
+      <a href="03-ingestion-autoloader-and-dlt-decision-matrix.html" class="index-chip ">03 Ingestão &amp; DLT</a>
+      <a href="04-pyspark-and-spark-sql-engineering-cheatsheet.html" class="index-chip active">04 PySpark &amp; SQL</a>
+      <a href="05-delta-lake-liquid-clustering-and-tuning-guide.html" class="index-chip ">05 Liquid &amp; Tuning</a>
+      <a href="06-workflows-dabs-cicd-and-system-tables-cheatsheet.html" class="index-chip ">06 DABs &amp; System</a>
+    </div>
+  </nav>
+
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #0078D4; text-transform: uppercase; letter-spacing: 0.05em;">Folha de Referência Rápida DP-750</span>
+      <h1>Folha 04: Cheatsheet de Engenharia: PySpark, Spark SQL & MERGE SCD2</h1>
+      <p class="subtitle">Transformações essenciais, Window Functions para deduplicação, tratamento de JSON aninhado e MERGE INTO para SCD Tipo 1 e Tipo 2.</p>
+    </div>
+
+    <div class="fullwidth">
+      
+        <h2>1. Funções de Janela (Window Functions) para Deduplicação de Dados</h2>
+        <pre><code>from pyspark.sql.window import Window
+from pyspark.sql.functions import col, row_number, dense_rank, lag, lead
+
+# Cenário: Manter apenas o evento mais recente de cada cliente (Deduplicação Silver)
+window_dedup = Window.partitionBy("id_cliente").orderBy(col("timestamp_evento").desc())
+
+df_silver_dedup = (df_bronze
+    .withColumn("row_num", row_number().over(window_dedup))
+    .filter(col("row_num") == 1)
+    .drop("row_num"))</code></pre>
+
+        <h2>2. Manipulação de Colunas Complexas e JSON Aninhado</h2>
+        <pre><code>from pyspark.sql.functions import from_json, to_json, explode, col
+from pyspark.sql.types import StructType, StructField, StringType, DoubleType, ArrayType
+
+# Schema para array de itens dentro do pedido
+schema_itens = ArrayType(StructType([
+    StructField("produto_id", StringType(), False),
+    StructField("quantidade", DoubleType(), False),
+    StructField("valor_unitario", DoubleType(), False)
+]))
+
+# Desaninhando itens com explode
+df_pedidos_detalhados = (df_raw
+    .withColumn("itens_array", from_json(col("payload_json"), schema_itens))
+    .withColumn("item", explode(col("itens_array")))
+    .select(
+        col("pedido_id"),
+        col("cliente_id"),
+        col("item.produto_id"),
+        col("item.quantidade"),
+        col("item.valor_unitario"),
+        (col("item.quantidade") * col("item.valor_unitario")).alias("subtotal")
+    ))</code></pre>
+
+        <h2>3. MERGE INTO no Delta Lake: SCD Tipo 1 (Sobrescrita Simples)</h2>
+        <pre><code>-- MERGE SCD Tipo 1: Atualiza registros existentes ou insere novos registros
+MERGE INTO prod_lakehouse.silver.dim_cliente AS target
+USING staging_clientes AS source
+ON target.id_cliente = source.id_cliente
+WHEN MATCHED THEN
+  UPDATE SET 
+    target.nome = source.nome,
+    target.email = source.email,
+    target.cidade = source.cidade,
+    target.data_atualizacao = current_timestamp()
+WHEN NOT MATCHED THEN
+  INSERT (id_cliente, nome, email, cidade, data_atualizacao)
+  VALUES (source.id_cliente, source.nome, source.email, source.cidade, current_timestamp());</code></pre>
+
+        <h2>4. MERGE INTO no Delta Lake: SCD Tipo 2 (Histórico com Vigência)</h2>
+        <pre><code>-- MERGE SCD Tipo 2: Mantém histórico com colunas is_current, start_date e end_date
+
+-- Passo 1: Fechar a vigência do registro antigo que sofreu alteração cadastral
+MERGE INTO prod_lakehouse.silver.dim_fornecedor AS target
+USING staging_fornecedor AS source
+ON target.id_fornecedor = source.id_fornecedor 
+   AND target.is_current = true
+WHEN MATCHED AND (target.endereco <> source.endereco OR target.telefone <> source.telefone) THEN
+  UPDATE SET 
+    target.is_current = false, 
+    target.end_date = current_date();
+
+-- Passo 2: Inserir a nova versão ativa
+MERGE INTO prod_lakehouse.silver.dim_fornecedor AS target
+USING staging_fornecedor AS source
+ON target.id_fornecedor = source.id_fornecedor 
+   AND target.endereco = source.endereco 
+   AND target.is_current = true
+WHEN NOT MATCHED THEN
+  INSERT (id_fornecedor, nome, endereco, telefone, start_date, end_date, is_current)
+  VALUES (source.id_fornecedor, source.nome, source.endereco, source.telefone, current_date(), NULL, true);</code></pre>
+
+        <h2>5. Otimização de Joins: Broadcast Join vs Skew Join Hints</h2>
+        <pre><code>from pyspark.sql.functions import broadcast
+
+-- 1. Broadcast Hash Join: Ideal quando uma das tabelas é pequena (ex: dimensional &lt; 100 MB)
+-- Elimina completamente o shuffle de rede pela troca de dados:
+df_resultado = df_fatos_grande.join(broadcast(df_dimensao_pequena), "id_categoria")
+
+-- 2. Skew Join Hint no Spark SQL: Quando uma chave tem distribuição desbalanceada (ex: NULLs ou 'SP')
+-- O Spark divide a partição pesada em sub-partições balanceadas:
+SELECT /*+ SKEW('f', 'id_cliente') */ 
+    f.id_transacao, 
+    c.nome_cliente, 
+    f.valor
+FROM prod_lakehouse.silver.fatos_transacoes AS f
+JOIN prod_lakehouse.silver.dim_cliente AS c
+  ON f.id_cliente = c.id_cliente;</code></pre>
+
+        <h2>6. ⚠️ Pegadinhas Críticas do Exame DP-750 (PySpark & SQL)</h2>
+        <blockquote>
+          <ul>
+            <li><strong>UDFs Python Tradicionais:</strong> UDFs definidas com <code>@udf</code> em Python forçam a serialização linha a linha entre a JVM e o processo Python, desabilitando o Catalyst Optimizer e o Photon Engine. Sempre prefira funções nativas de <code>pyspark.sql.functions</code> ou UDFs vetorizadas com Pandas (PyArrow).</li>
+            <li><strong>Uso perigoso de df.collect():</strong> O comando <code>.collect()</code> envia TODOS os dados dos executors para a memória do Driver. Em produção com grandes volumes, causa erro fatal de <code>OutOfMemoryError (Driver OOM)</code>.</li>
+          </ul>
+        </blockquote>
+        
+    </div>
+
+    <footer style="margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid #E1E8ED; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-sans);">
+      <div><a href="../index.html#referencias">← Voltar ao Portal</a></div>
+      <div><a href="../simulados/index.html" style="font-weight: 700; color: #FF3621;">Praticar no Simulado Oficial (+180Q) →</a></div>
+    </footer>
+  </article>
+
+  <script src="../assets/lens.js"></script>
+</body>
+</html>

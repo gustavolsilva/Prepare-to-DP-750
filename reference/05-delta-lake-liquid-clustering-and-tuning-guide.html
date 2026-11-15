@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folha 05: Guia de Otimização Física: Liquid Clustering & Tuning de Performance | Databricks Formation DP-750</title>
+  <meta name="description" content="Liquid Clustering (CLUSTER BY) vs Particionamento Hive, Deletion Vectors, OPTIMIZE, VACUUM e Diagnóstico na Spark UI.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#referencias" class="active">Folhas de Referência</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Folhas Rápidas:</span>
+      <a href="01-spark-and-databricks-architecture-visual-guide.html" class="index-chip ">01 Arquitetura</a>
+      <a href="02-unity-catalog-security-and-governance-guide.html" class="index-chip ">02 Unity Catalog</a>
+      <a href="03-ingestion-autoloader-and-dlt-decision-matrix.html" class="index-chip ">03 Ingestão &amp; DLT</a>
+      <a href="04-pyspark-and-spark-sql-engineering-cheatsheet.html" class="index-chip ">04 PySpark &amp; SQL</a>
+      <a href="05-delta-lake-liquid-clustering-and-tuning-guide.html" class="index-chip active">05 Liquid &amp; Tuning</a>
+      <a href="06-workflows-dabs-cicd-and-system-tables-cheatsheet.html" class="index-chip ">06 DABs &amp; System</a>
+    </div>
+  </nav>
+
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #0078D4; text-transform: uppercase; letter-spacing: 0.05em;">Folha de Referência Rápida DP-750</span>
+      <h1>Folha 05: Guia de Otimização Física: Liquid Clustering & Tuning de Performance</h1>
+      <p class="subtitle">Liquid Clustering (CLUSTER BY) vs Particionamento Hive, Deletion Vectors, OPTIMIZE, VACUUM e Diagnóstico na Spark UI.</p>
+    </div>
+
+    <div class="fullwidth">
+      
+        <h2>1. Liquid Clustering (CLUSTER BY) vs Particionamento Tradicional Hive</h2>
+        <p>O <strong>Liquid Clustering</strong> é a inovação mais importante de layout físico do Delta Lake no exame DP-750, substituindo o particionamento rígido Hive e o Z-Order tradicional:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Característica</th>
+              <th>Particionamento Tradicional Hive (PARTITIONED BY)</th>
+              <th>Liquid Clustering (CLUSTER BY) — Padrão DP-750</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Flexibilidade de Colunas</strong></td>
+              <td>Rígido: alterar as colunas de partição exige recriar e reescrever a tabela</td>
+              <td>Dinâmico: você pode alterar as chaves de clusterização com <code>ALTER TABLE</code> a qualquer momento</td>
+            </tr>
+            <tr>
+              <td><strong>Problema de Small Files</strong></td>
+              <td>Severo: colunas com alta cardinalidade geram milhões de pequenos arquivos</td>
+              <td>Inexistente: o algoritmo agrupa dados mantendo arquivos de tamanho ideal (~1 GB)</td>
+            </tr>
+            <tr>
+              <td><strong>Custo de Manutenção</strong></td>
+              <td>O comando <code>ZORDER</code> exige reordenações globais caras e lentas</td>
+              <td>O comando <code>OPTIMIZE</code> opera de forma incremental, clusterizando apenas novos dados</td>
+            </tr>
+            <tr>
+              <td><strong>Concorrência de Escrita</strong></td>
+              <td>Conflitos frequentes em commits simultâneos na mesma partição</td>
+              <td>Excelente concorrência, especialmente combinado com <strong>Deletion Vectors</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>2. Sintaxe Oficial de Liquid Clustering no SQL</h2>
+        <pre><code>-- Criação de tabela com Liquid Clustering por múltiplas colunas:
+CREATE TABLE prod_lakehouse.gold.vendas_analiticas (
+    id_pedido BIGINT,
+    data_pedido DATE,
+    id_cliente INT,
+    codigo_pais STRING,
+    valor_total DECIMAL(10,2)
+)
+CLUSTER BY (codigo_pais, data_pedido, id_cliente);
+
+-- Alterando as colunas de clusterização sem reescrever a tabela:
+ALTER TABLE prod_lakehouse.gold.vendas_analiticas
+CLUSTER BY (codigo_pais, data_pedido);
+
+-- Executando a otimização incremental:
+OPTIMIZE prod_lakehouse.gold.vendas_analiticas;</code></pre>
+
+        <h2>3. Deletion Vectors (Mutações Ultrarrápidas no Delta Lake)</h2>
+        <p>No Delta Lake tradicional, quando uma única linha era excluída ou atualizada em um arquivo Parquet de 100 MB, o Spark precisava reescrever o arquivo inteiro de 100 MB (Copy-on-Write). Com <strong>Deletion Vectors</strong>:</p>
+        <ul>
+          <li>O Delta grava um arquivo leve de bitmap (vetor de bits) indicando apenas os números das linhas deletadas/atualizadas.</li>
+          <li>As consultas de leitura aplicam o bitmap em memória, ignorando as linhas removidas instantaneamente.</li>
+          <li>Reduz o tempo de <code>MERGE INTO</code>, <code>DELETE</code> e <code>UPDATE</code> em até 10x!</li>
+          <li>Habilitação: <code>ALTER TABLE tbl SET TBLPROPERTIES ('delta.enableDeletionVectors' = true);</code></li>
+        </ul>
+
+        <h2>4. Comandos de Manutenção Física: OPTIMIZE e VACUUM</h2>
+        <pre><code>-- 1. OPTIMIZE: Bin-packing de pequenos arquivos para consolidar em arquivos de ~1 GB
+OPTIMIZE prod_lakehouse.silver.fatos_transacoes;
+
+-- 2. VACUUM: Limpeza de arquivos Parquet órfãos desassociados do log após transações
+-- Remove apenas arquivos com mais de 7 dias (período de retenção padrão seguro)
+VACUUM prod_lakehouse.silver.fatos_transacoes;
+
+-- 3. VACUUM com retenção personalizada (ex: 3 dias / 72 horas para auditoria):
+VACUUM prod_lakehouse.silver.fatos_transacoes RETAIN 72 HOURS;</code></pre>
+
+        <h2>5. Diagnóstico de Gargalos na Spark UI</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Sintoma na Spark UI</th>
+              <th>Causa Raiz Técnica</th>
+              <th>Ação Corretiva Recomendada</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Spill (Memory / Disk)</strong></td>
+              <td>Partições de Shuffle excedem a memória RAM alocada para os slots dos executors</td>
+              <td>Aumentar <code>spark.sql.shuffle.partitions</code> ou migrar para nós de VM otimizados para memória</td>
+            </tr>
+            <tr>
+              <td><strong>Data Skew (Stragglers)</strong></td>
+              <td>Poucas tasks demoram minutos enquanto 199 tasks concluem em 2 segundos</td>
+              <td>Usar Skew Join Hint <code>/*+ SKEW */</code> ou técnica de Salting na chave do Join</td>
+            </tr>
+            <tr>
+              <td><strong>Garbage Collection Pauses</strong></td>
+              <td>Alta taxa de alocação de objetos temporários na JVM do Java</td>
+              <td>Habilitar o <strong>Photon Engine</strong> para execução nativa C++ fora da JVM</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>6. ⚠️ Pegadinhas Críticas do Exame DP-750 (Delta Lake & Otimização)</h2>
+        <blockquote>
+          <ul>
+            <li><strong>O Perigo do VACUUM RETAIN 0 HOURS:</strong> Executar <code>VACUUM tbl RETAIN 0 HOURS;</code> falhará por padrão devido à trava de segurança <code>spark.databricks.delta.retentionDurationCheck.enabled</code>. Se forçada, essa ação <strong>DESTRÓI imediatamente a capacidade de Time Travel</strong> e corromperá leituras concorrentes em andamento!</li>
+            <li><strong>Quando usar Liquid Clustering?</strong> Tabelas com padrões de consulta imprevisíveis, tabelas com cardinalidade variável ou tabelas atualizadas frequentemente com MERGE. O DP-750 prioriza Liquid Clustering em relação ao particionamento Hive.</li>
+          </ul>
+        </blockquote>
+        
+    </div>
+
+    <footer style="margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid #E1E8ED; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-sans);">
+      <div><a href="../index.html#referencias">← Voltar ao Portal</a></div>
+      <div><a href="../simulados/index.html" style="font-weight: 700; color: #FF3621;">Praticar no Simulado Oficial (+180Q) →</a></div>
+    </footer>
+  </article>
+
+  <script src="../assets/lens.js"></script>
+</body>
+</html>

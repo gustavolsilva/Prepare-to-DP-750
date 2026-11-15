@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folha 06: Cheatsheet de Workflows, DABs (databricks.yml) & System Tables | Databricks Formation DP-750</title>
+  <meta name="description" content="Databricks Workflows, Task Values, Repair Runs, Databricks Asset Bundles (DABs), CI/CD com Entra ID e System Tables.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#referencias" class="active">Folhas de Referência</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Folhas Rápidas:</span>
+      <a href="01-spark-and-databricks-architecture-visual-guide.html" class="index-chip ">01 Arquitetura</a>
+      <a href="02-unity-catalog-security-and-governance-guide.html" class="index-chip ">02 Unity Catalog</a>
+      <a href="03-ingestion-autoloader-and-dlt-decision-matrix.html" class="index-chip ">03 Ingestão &amp; DLT</a>
+      <a href="04-pyspark-and-spark-sql-engineering-cheatsheet.html" class="index-chip ">04 PySpark &amp; SQL</a>
+      <a href="05-delta-lake-liquid-clustering-and-tuning-guide.html" class="index-chip ">05 Liquid &amp; Tuning</a>
+      <a href="06-workflows-dabs-cicd-and-system-tables-cheatsheet.html" class="index-chip active">06 DABs &amp; System</a>
+    </div>
+  </nav>
+
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #0078D4; text-transform: uppercase; letter-spacing: 0.05em;">Folha de Referência Rápida DP-750</span>
+      <h1>Folha 06: Cheatsheet de Workflows, DABs (databricks.yml) & System Tables</h1>
+      <p class="subtitle">Databricks Workflows, Task Values, Repair Runs, Databricks Asset Bundles (DABs), CI/CD com Entra ID e System Tables.</p>
+    </div>
+
+    <div class="fullwidth">
+      
+        <h2>1. Databricks Workflows: Multi-Task DAGs & Task Values</h2>
+        <p>O Databricks Workflows é o orquestrador nativo totalmente gerenciado do Lakehouse para pipelines multitarefas:</p>
+        <ul>
+          <li><strong>Tipos de Tarefas Heterogêneas:</strong> Pode combinar em um único DAG tarefas de Notebook, scripts Python, consultas SQL/Alerts, pipelines Delta Live Tables (DLT) e dbt.</li>
+          <li><strong>Task Values (Passagem de Parâmetros entre Tarefas):</strong></li>
+        </ul>
+        <pre><code># Tarefa 1 (Upstream): Define uma variável de saída compartilhada
+total_registros_processados = 452000
+dbutils.jobs.taskValues.set(key="total_rows", value=total_registros_processados)
+
+# Tarefa 2 (Downstream): Lê a variável gerada pela Tarefa 1
+linhas_anteriores = dbutils.jobs.taskValues.get(taskKey="tarefa_ingestao_bronze", key="total_rows")
+print(f"Processando {linhas_anteriores} linhas na camada Silver...")</code></pre>
+
+        <h2>2. Repair Run no Databricks Workflows (Eficiência Operacional)</h2>
+        <p>Se um job multitarefa de 10 etapas falhar na etapa 7 devido a uma instabilidade passageira de rede:</p>
+        <ul>
+          <li><strong>O que NÃO fazer:</strong> Reiniciar o job inteiro do zero (recalculando as etapas 1 a 6 e gastando DBUs desnecessárias).</li>
+          <li><strong>Padrão Ouro DP-750:</strong> Executar um <strong>Repair Run</strong>. O Databricks reexecuta <strong>exclusivamente a tarefa que falhou</strong> (etapa 7) e suas dependências downstream, preservando os resultados das etapas concluídas com sucesso.</li>
+        </ul>
+
+        <h2>3. Databricks Asset Bundles (DABs) & Estrutura do databricks.yml</h2>
+        <p>DABs é a ferramenta oficial de Infraestrutura como Código (IaC) e automação de CI/CD para projetos Databricks:</p>
+        <pre><code>bundle:
+  name: dp750_lakehouse_prod
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-dev.azuredatabricks.net
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-prod.azuredatabricks.net
+
+resources:
+  jobs:
+    etl_pipeline_diario:
+      name: "[PROD] Pipeline Medallion Diário"
+      schedule:
+        quartz_cron_expression: "0 0 3 * * ?"
+        timezone_id: "America/Sao_Paulo"
+      job_clusters:
+        - job_cluster_key: job_cluster_finops
+          new_cluster:
+            spark_version: 15.4.x-photon-scala2.12
+            node_type_id: Standard_D4ds_v5
+            autoscale:
+              min_workers: 1
+              max_workers: 4
+      tasks:
+        - task_key: ingestao_bronze
+          job_cluster_key: job_cluster_finops
+          notebook_task:
+            notebook_path: ../src/01_ingestao_bronze.py
+        - task_key: transformacao_silver
+          depends_on:
+            - task_key: ingestao_bronze
+          job_cluster_key: job_cluster_finops
+          notebook_task:
+            notebook_path: ../src/02_transformacao_silver.py</code></pre>
+
+        <h2>4. Comandos CLI Essenciais de Databricks Asset Bundles</h2>
+        <pre><code># 1. Validar a sintaxe dos arquivos YAML e caminhos do bundle:
+databricks bundle validate
+
+# 2. Fazer o deploy dos recursos no ambiente de desenvolvimento:
+databricks bundle deploy -t dev
+
+# 3. Fazer o deploy em produção e disparar a execução imediata:
+databricks bundle deploy -t prod
+databricks bundle run -t prod etl_pipeline_diario
+
+# 4. Destruir os recursos criados pelo bundle no target:
+databricks bundle destroy -t dev</code></pre>
+
+        <h2>5. Consultas Analíticas em System Tables (FinOps & Auditoria)</h2>
+        <pre><code>-- 1. Relatório FinOps: Consumo de DBUs agrupado por Job e SKU nos últimos 30 dias:
+SELECT 
+    usage_date,
+    sku_name,
+    usage_metadata.job_id,
+    SUM(usage_quantity) AS total_dbus_consumidos
+FROM system.billing.usage
+WHERE usage_date >= current_date() - INTERVAL 30 DAYS
+GROUP BY 1, 2, 3
+ORDER BY total_dbus_consumidos DESC;
+
+-- 2. Auditoria de Segurança: Rastreamento de acessos e modificações de privilégios:
+SELECT 
+    event_time,
+    user_identity.email,
+    action_name,
+    request_params.catalog_name,
+    request_params.schema_name,
+    request_params.securable_type
+FROM system.access.audit
+WHERE service_name = 'unityCatalog'
+  AND action_name IN ('grantPermissions', 'revokePermissions')
+ORDER BY event_time DESC
+LIMIT 50;</code></pre>
+
+        <h2>6. ⚠️ Pegadinhas Críticas do Exame DP-750 (Workflows & CI/CD)</h2>
+        <blockquote>
+          <ul>
+            <li><strong>Autenticação em CI/CD:</strong> NUNCA use tokens de acesso pessoal (PATs) de desenvolvedores individuais em pipelines de CI/CD (Azure DevOps / GitHub Actions). O exame exige <strong>Microsoft Entra ID Service Principals com autenticação federada OIDC</strong>.</li>
+            <li><strong>Falha Parcial em Workflows:</strong> Ao identificar falhas em pipelines de produção, lembre-se da opção <strong>Repair Run</strong> para evitar reprocessamento dispendioso.</li>
+          </ul>
+        </blockquote>
+        
+    </div>
+
+    <footer style="margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid #E1E8ED; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-sans);">
+      <div><a href="../index.html#referencias">← Voltar ao Portal</a></div>
+      <div><a href="../simulados/index.html" style="font-weight: 700; color: #FF3621;">Praticar no Simulado Oficial (+180Q) →</a></div>
+    </footer>
+  </article>
+
+  <script src="../assets/lens.js"></script>
+</body>
+</html>

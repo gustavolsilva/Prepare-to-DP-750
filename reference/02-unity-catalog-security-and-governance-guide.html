@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folha 02: Guia de Governança e Segurança com Unity Catalog | Databricks Formation DP-750</title>
+  <meta name="description" content="Metastore Regional, 3-Level Namespace, Managed vs External Tables & Volumes, Privilégios Hierárquicos (DCL), Row Filters, Column Masks e Delta Sharing.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#referencias" class="active">Folhas de Referência</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Folhas Rápidas:</span>
+      <a href="01-spark-and-databricks-architecture-visual-guide.html" class="index-chip ">01 Arquitetura</a>
+      <a href="02-unity-catalog-security-and-governance-guide.html" class="index-chip active">02 Unity Catalog</a>
+      <a href="03-ingestion-autoloader-and-dlt-decision-matrix.html" class="index-chip ">03 Ingestão &amp; DLT</a>
+      <a href="04-pyspark-and-spark-sql-engineering-cheatsheet.html" class="index-chip ">04 PySpark &amp; SQL</a>
+      <a href="05-delta-lake-liquid-clustering-and-tuning-guide.html" class="index-chip ">05 Liquid &amp; Tuning</a>
+      <a href="06-workflows-dabs-cicd-and-system-tables-cheatsheet.html" class="index-chip ">06 DABs &amp; System</a>
+    </div>
+  </nav>
+
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #0078D4; text-transform: uppercase; letter-spacing: 0.05em;">Folha de Referência Rápida DP-750</span>
+      <h1>Folha 02: Guia de Governança e Segurança com Unity Catalog</h1>
+      <p class="subtitle">Metastore Regional, 3-Level Namespace, Managed vs External Tables & Volumes, Privilégios Hierárquicos (DCL), Row Filters, Column Masks e Delta Sharing.</p>
+    </div>
+
+    <div class="fullwidth">
+      
+        <h2>1. Arquitetura do Unity Catalog: Metastore Regional & 3-Level Namespace</h2>
+        <p>O Unity Catalog é o mecanismo unificado de governança do Databricks Lakehouse. Principais premissas arquiteturais testadas no exame:</p>
+        <ul>
+          <li><strong>Um Metastore por Região:</strong> Um único Metastore do Unity Catalog atende a múltiplos workspaces na mesma região da nuvem.</li>
+          <li><strong>Namespace de 3 Níveis (catalog.schema.table_or_volume):</strong> Elimina a dependência do catálogo legado <code>hive_metastore</code> e possibilita consultas cruzadas totalmente qualificadas:</li>
+        </ul>
+        <pre><code>-- Consulta totalmente qualificada (FQDN) no Unity Catalog:
+SELECT 
+    c.id_cliente,
+    c.nome_cliente,
+    v.valor_total
+FROM prod_lakehouse.financeiro.clientes AS c
+JOIN prod_lakehouse.vendas.pedidos AS v
+  ON c.id_cliente = v.id_cliente
+WHERE v.data_pedido >= '2025-01-01';</code></pre>
+
+        <h2>2. Managed Tables vs External Tables</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Característica</th>
+              <th>Managed Table (Tabela Gerenciada)</th>
+              <th>External Table (Tabela Externa)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Localização dos Dados</strong></td>
+              <td>Armazenada no storage raiz padrão associado ao Schema ou Catalog</td>
+              <td>Armazenada em um caminho explícito dentro de uma External Location no ADLS Gen2</td>
+            </tr>
+            <tr>
+              <td><strong>Comportamento do DROP TABLE</strong></td>
+              <td><strong>Exclui os Metadados E os arquivos físicos de dados Parquet</strong></td>
+              <td><strong>Exclui APENAS os Metadados</strong> no Unity Catalog; os dados físicos no ADLS Gen2 permanecem intactos</td>
+            </tr>
+            <tr>
+              <td><strong>Criação Típica SQL</strong></td>
+              <td><code>CREATE TABLE cat.sch.tbl (id INT, nome STRING);</code></td>
+              <td><code>CREATE TABLE cat.sch.tbl (...) LOCATION 'abfss://...';</code></td>
+            </tr>
+            <tr>
+              <td><strong>Uso Recomendado</strong></td>
+              <td>Tabelas internas padrão criadas e gerenciadas 100% pelo Databricks</td>
+              <td>Dados compartilhados com outras ferramentas ou ingeridos externamente</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>3. Managed Volumes vs External Volumes</h2>
+        <p>Volumes governam arquivos <strong>não tabulares</strong> (CSVs brutos, JSONs, logs, imagens, PDFs, arquivos de modelo MLflow) com controle de acesso RBAC:</p>
+        <ul>
+          <li><strong>Managed Volume:</strong> Os arquivos residem no storage padrão do Unity Catalog. Se o volume for excluído com <code>DROP VOLUME</code>, os arquivos são apagados.</li>
+          <li><strong>External Volume:</strong> Aponta para um caminho em uma External Location. Se o volume for excluído, os arquivos no ADLS Gen2 continuam preservados.</li>
+          <li><strong>Caminho POSIX Padronizado:</strong> Acessível em código PySpark/Python via caminho montado: <code>/Volumes/catalogo/schema/nome_volume/arquivo.csv</code>.</li>
+        </ul>
+
+        <h2>4. Storage Credentials & External Locations (Infraestrutura de Acesso)</h2>
+        <pre><code>-- 1. Criação da Storage Credential usando a Identidade Gerenciada do Azure (Access Connector):
+CREATE STORAGE CREDENTIAL cred_managed_identity
+WITH (
+    AZURE_MANAGED_IDENTITY = (
+        RESOURCE_ID = '/subscriptions/.../resourceGroups/.../providers/Microsoft.Databricks/accessConnectors/meu-conector'
+    )
+)
+COMMENT 'Credencial oficial usando Managed Identity com permissão Storage Blob Data Contributor';
+
+-- 2. Criação da External Location associando o container ADLS Gen2 à credencial:
+CREATE EXTERNAL LOCATION loc_adls_raw
+URL 'abfss://raw@datalakeprod.dfs.core.windows.net/'
+WITH (STORAGE CREDENTIAL cred_managed_identity)
+COMMENT 'Localização externa para dados brutos de ingestão';</code></pre>
+
+        <h2>5. Matriz de Concessão de Privilégios Hierárquicos (DCL)</h2>
+        <p>No Unity Catalog, o acesso é hierárquico e explícito. Para que um usuário consiga ler uma tabela, ele necessita de privilégios cumulativos em toda a árvore:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Objeto</th>
+              <th>Privilégio Essencial</th>
+              <th>Comando SQL Oficial</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Catalog</strong></td>
+              <td>USE CATALOG</td>
+              <td><code>GRANT USE CATALOG ON CATALOG prod_lakehouse TO `analistas_bi`;</code></td>
+            </tr>
+            <tr>
+              <td><strong>Schema</strong></td>
+              <td>USE SCHEMA, CREATE TABLE</td>
+              <td><code>GRANT USE SCHEMA, CREATE TABLE ON SCHEMA prod_lakehouse.vendas TO `analistas_bi`;</code></td>
+            </tr>
+            <tr>
+              <td><strong>Table / View</strong></td>
+              <td>SELECT, MODIFY</td>
+              <td><code>GRANT SELECT ON TABLE prod_lakehouse.vendas.pedidos TO `analistas_bi`;</code></td>
+            </tr>
+            <tr>
+              <td><strong>Volume</strong></td>
+              <td>READ VOLUME, WRITE VOLUME</td>
+              <td><code>GRANT READ VOLUME ON VOLUME prod_lakehouse.vendas.raw_files TO `engenharia_dados`;</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>6. Row Filters e Column Masks Dinâmicas (Proteção Fina de Dados)</h2>
+        <pre><code>-- 1. Função de Filtro por Linha (Row Filter): Analistas do Brasil só veem clientes do Brasil
+CREATE OR REPLACE FUNCTION prod_lakehouse.seguranca.filtro_pais_cliente(pais STRING)
+RETURN IF(is_account_group_member('diretoria_global'), true, pais = 'Brasil');
+
+ALTER TABLE prod_lakehouse.vendas.clientes
+SET ROW FILTER prod_lakehouse.seguranca.filtro_pais_cliente ON (pais_residencia);
+
+-- 2. Função de Mascaramento Dinâmico de Coluna (Column Mask): Ocultar CPF para não autorizados
+CREATE OR REPLACE FUNCTION prod_lakehouse.seguranca.mascarar_cpf(cpf STRING)
+RETURN IF(is_account_group_member('compliance_auditores'), cpf, CONCAT('***.***.', RIGHT(cpf, 2)));
+
+ALTER TABLE prod_lakehouse.vendas.clientes
+ALTER COLUMN cpf SET MASK prod_lakehouse.seguranca.mascarar_cpf;</code></pre>
+
+        <h2>7. Delta Sharing & Auditoria com System Tables</h2>
+        <ul>
+          <li><strong>Delta Sharing:</strong> Primeiro protocolo aberto do mercado para compartilhamento seguro de tabelas ativas com destinatários dentro ou fora do Databricks (via REST API aberta, sem replicação física de dados).</li>
+          <li><strong>System Tables:</strong>
+            <ul>
+              <li><code>system.access.audit</code>: Rastreia eventos de auditoria (quem consultou qual tabela, quando e de onde).</li>
+              <li><code>system.billing.usage</code>: Rastreia o consumo exato de DBUs por workspace, cluster, SKU e tags de faturamento.</li>
+              <li><code>system.lineage.table_lineage</code>: Rastreia a árvore completa de dependência entre tabelas e colunas.</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h2>8. ⚠️ Pegadinhas Críticas do Exame DP-750 (Unity Catalog)</h2>
+        <blockquote>
+          <ul>
+            <li><strong>Falta de USE CATALOG / USE SCHEMA:</strong> Conceder apenas <code>GRANT SELECT ON TABLE tbl TO grupo;</code> NÃO funcionará se o grupo não possuir <code>USE CATALOG</code> no catálogo pai e <code>USE SCHEMA</code> no schema pai.</li>
+            <li><strong>Perda de Dados com DROP TABLE:</strong> Se uma tabela for <em>Managed</em>, o <code>DROP TABLE</code> exclui permanentemente os dados do storage. Se a intenção for apenas remover o registro do catálogo mantendo os dados no ADLS Gen2, ela deve ser criada como <em>External Table</em>.</li>
+          </ul>
+        </blockquote>
+        
+    </div>
+
+    <footer style="margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid #E1E8ED; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-sans);">
+      <div><a href="../index.html#referencias">← Voltar ao Portal</a></div>
+      <div><a href="../simulados/index.html" style="font-weight: 700; color: #FF3621;">Praticar no Simulado Oficial (+180Q) →</a></div>
+    </footer>
+  </article>
+
+  <script src="../assets/lens.js"></script>
+</body>
+</html>

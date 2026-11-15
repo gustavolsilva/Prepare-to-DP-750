@@ -1,0 +1,33 @@
+# Python & Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Vercel & Deploy Artifacts
+.vercel/
+dist/
+build/
+*.log
+
+# Large Binaries & Temporary Media
+assets/models/
+*.wav
+scripts/raw_questions_data.py
+
+

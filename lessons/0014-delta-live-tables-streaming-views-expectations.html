@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lição 0014: Pipelines Declarativos com Delta Live Tables (DLT) & Data Quality Expectations | Databricks Formation DP-750</title>
+  <meta name="description" content="Construa pipelines confiáveis com Delta Live Tables (Lakeflow): crie Streaming Tables, Materialized Views, garanta qualidade de dados com Expectations e aplique CDC com APPLY CHANGES INTO.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#modulo-4" class="active">Módulo 4</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><a href="../reference/01-spark-and-databricks-architecture-visual-guide.html">Folhas de Referência</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Lições Rápidas:</span>
+      <a href="0001-arquitetura-azure-databricks-compute-dbus.html" class="index-chip ">0001</a>
+      <a href="0002-anatomia-apache-spark-catalyst-photon.html" class="index-chip ">0002</a>
+      <a href="0003-protocolo-delta-lake-acid-time-travel.html" class="index-chip ">0003</a>
+      <a href="0004-workspaces-entra-id-vnet-private-link.html" class="index-chip ">0004</a>
+      <a href="0005-clusters-policies-pools-serverless-sql.html" class="index-chip ">0005</a>
+      <a href="0006-integracao-azure-keyvault-adls-external.html" class="index-chip ">0006</a>
+      <a href="0007-unity-catalog-metastore-namespace-volumes.html" class="index-chip ">0007</a>
+      <a href="0008-controle-acesso-fino-row-column-masks.html" class="index-chip ">0008</a>
+      <a href="0009-linhagem-system-tables-delta-sharing.html" class="index-chip ">0009</a>
+      <a href="0010-ingestao-autoloader-copyinto-lakeflow.html" class="index-chip ">0010</a>
+      <a href="0011-medallion-pyspark-sparksql-scd1-scd2.html" class="index-chip ">0011</a>
+      <a href="0012-structured-streaming-watermark-joins.html" class="index-chip ">0012</a>
+      <a href="0013-liquid-clustering-deletion-vectors-caching.html" class="index-chip ">0013</a>
+      <a href="0014-delta-live-tables-streaming-views-expectations.html" class="index-chip active">0014</a>
+      <a href="0015-orquestracao-dabs-cicd-system-tables.html" class="index-chip ">0015</a>
+      <a href="../simulados/index.html" class="index-chip special">Simulado (+180Q)</a>
+    </div>
+  </nav>
+
+  <article>
+    <!-- Header da Lição -->
+    <div id="bloco-contexto" style="margin-bottom: 1.5rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #FF3621; text-transform: uppercase; letter-spacing: 0.05em;">Módulo 4: Implantar e Manter Pipelines e Workloads (30–35% do Exame)</span>
+      <h1>Lição 0014: Pipelines Declarativos com Delta Live Tables (DLT) & Data Quality Expectations</h1>
+      <p class="subtitle">Construa pipelines confiáveis com Delta Live Tables (Lakeflow): crie Streaming Tables, Materialized Views, garanta qualidade de dados com Expectations e aplique CDC com APPLY CHANGES INTO.</p>
+    </div>
+
+    <!-- Barra de Nível / Lente (Persistência Global no padrão DP-700) -->
+    <nav class="lens-selector-bar">
+      <span>Nível Ativo:</span>
+      <button class="lens-btn active" data-lens="unificado" data-lens-target="all">
+        <span>🌐 Visão Unificada</span>
+        <span class="lens-key-badge">0</span>
+      </button>
+      <button class="lens-btn" data-lens="junior" data-lens-target="junior">
+        <span>🌱 Júnior</span>
+        <span class="lens-key-badge">1</span>
+      </button>
+      <button class="lens-btn" data-lens="pleno" data-lens-target="pleno">
+        <span>🛠️ Pleno</span>
+        <span class="lens-key-badge">2</span>
+      </button>
+      <button class="lens-btn" data-lens="senior" data-lens-target="senior">
+        <span>🎯 Sênior &amp; DP-750</span>
+        <span class="lens-key-badge">3</span>
+      </button>
+      <button class="lens-btn" data-lens="staff" data-lens-target="staff">
+        <span>⚙️ Staff</span>
+        <span class="lens-key-badge">4</span>
+      </button>
+      <button class="lens-btn" data-lens="clevel" data-lens-target="c-level">
+        <span>🏛️ C-Level</span>
+        <span class="lens-key-badge">5</span>
+      </button>
+      <div class="current-lens-badge" id="current-profile-label">🌐 Visão Unificada Completa</div>
+    </nav>
+
+    <!-- Barra de Navegação Rápida da Lição -->
+    <div class="vark-nav-bar">
+      <span>Navegação da Lição:</span>
+      <a href="#bloco-audio" class="vark-pill">🎧 Áudio Explicativo</a>
+      <a href="#bloco-visual" class="vark-pill">👁️ Arquitetura Visual</a>
+      <a href="#bloco-teoria" class="vark-pill">📖 Teoria &amp; Decisões</a>
+      <a href="#bloco-pratica" class="vark-pill">🛠️ Lab Hands-on</a>
+      <a href="#bloco-quiz" class="vark-pill">🎯 Desafio do Exame</a>
+    </div>
+
+    <!-- Narração Técnica em Áudio -->
+    <section id="bloco-audio" class="vark-section">
+      <span class="vark-badge vark-badge-a">🎧 Narração da Aula &amp; Termos Oficiais</span>
+      <p>
+        Acompanhe a explicação técnica em áudio desta lição, com pronúncia calibrada dos termos oficiais em inglês do Azure Databricks (ex: <em>Catalyst Optimizer, Photon, Liquid Clustering, Deletion Vectors, Delta Log</em>).
+      </p>
+      <div class="audio-hint-box">
+        <strong>Controle de Reprodução:</strong> Utilize o player na base da tela para iniciar o áudio, ajustar a velocidade (1x, 1.25x, 1.5x, 2x) ou use os botões <strong>Fixar/Desafixar</strong> e <strong>Ocultar</strong> para personalizar sua experiência de leitura.
+        <div style="margin-top: 0.75rem; display: flex; gap: 0.6rem; flex-wrap: wrap;">
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPlayFromSection()">
+            <span>▶️ Ouvir Lição Agora</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPin()">
+            <span class="inline-pin-label">📍 Desafixar da Base</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioHide(true)">
+            <span>▼ Ocultar Player</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Arquitetura Visual & Workspace -->
+    <section id="bloco-visual" class="vark-section">
+      <span class="vark-badge vark-badge-v">👁️ Arquitetura de Referência &amp; Console Interativo</span>
+      
+    <div class="svg-diagram-wrapper">
+      <svg viewBox="0 0 960 360" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad-db-0014" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1B3139"/>
+            <stop offset="100%" stop-color="#111E24"/>
+          </linearGradient>
+          <linearGradient id="grad-accent-0014" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#FF3621"/>
+            <stop offset="100%" stop-color="#FF5A36"/>
+          </linearGradient>
+          <filter id="shadow-0014" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.15"/>
+          </filter>
+        </defs>
+
+        <rect x="10" y="10" width="940" height="340" rx="12" fill="#F8FAFC" stroke="#D1DDE5" stroke-width="1.5"/>
+        <rect x="10" y="10" width="940" height="50" rx="12" fill="url(#grad-db-0014)"/>
+        <rect x="10" y="48" width="940" height="12" fill="#111E24"/>
+        <text x="35" y="42" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="700" letter-spacing="0.5">
+          ARQUITETURA DE REFERÊNCIA DP-750 — 0014
+        </text>
+        <text x="890" y="42" fill="#FF5A36" font-family="monospace" font-size="14" font-weight="700" text-anchor="end">
+          AZURE DATABRICKS
+        </text>
+
+        <!-- Bloco 1: Controle & Origem -->
+        <g transform="translate(40, 85)" filter="url(#shadow-0014)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#0078D4" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="#0078D4"/>
+          <rect x="0" y="30" width="260" height="8" fill="#0078D4"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">1. CONTROLE &amp; ORIGEM</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="80" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Microsoft Entra ID / SCIM</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="135" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Azure Key Vault / Secret</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="190" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Control Plane (WebApp/UI)</text>
+        </g>
+
+        <!-- Seta 1 para 2 -->
+        <path d="M 310 200 L 345 200" stroke="#FF3621" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="345,194 357,200 345,206" fill="#FF3621"/>
+
+        <!-- Bloco 2: Compute Plane -->
+        <g transform="translate(360, 85)" filter="url(#shadow-0014)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#FF3621" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="url(#grad-accent-0014)"/>
+          <rect x="0" y="30" width="260" height="8" fill="#FF5A36"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">2. COMPUTE PLANE &amp; SPARK</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="80" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Photon Engine C++ / DBR</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="135" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Job Cluster / Serverless</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="190" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Catalyst Logical &amp; Physical</text>
+        </g>
+
+        <!-- Seta 2 para 3 -->
+        <path d="M 630 200 L 665 200" stroke="#00A972" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="665,194 677,200 665,206" fill="#00A972"/>
+
+        <!-- Bloco 3: Unity Catalog & Delta -->
+        <g transform="translate(680, 85)" filter="url(#shadow-0014)">
+          <rect x="0" y="0" width="240" height="230" rx="8" fill="#FFFFFF" stroke="#00A972" stroke-width="2"/>
+          <rect x="0" y="0" width="240" height="38" rx="8" fill="#00A972"/>
+          <rect x="0" y="30" width="240" height="8" fill="#00A972"/>
+          <text x="120" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">3. UNITY CATALOG &amp; DELTA</text>
+          
+          <rect x="15" y="55" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="80" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Namespace: cat.sch.tbl</text>
+          
+          <rect x="15" y="110" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="135" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Delta Log (_delta_log JSON)</text>
+          
+          <rect x="15" y="165" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="190" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">ADLS Gen2 Parquet / DVs</text>
+        </g>
+      </svg>
+      <div class="svg-caption">Figura 0014.1: Fluxo arquitetural do Azure Databricks detalhando a segregação de responsabilidades do exame DP-750.</div>
+    </div>
+    
+      
+    <div class="workspace-mock-frame">
+      <div class="workspace-mock-header">
+        <div class="workspace-mock-dots">
+          <div class="mock-dot mock-dot-red"></div>
+          <div class="mock-dot mock-dot-yellow"></div>
+          <div class="mock-dot mock-dot-green"></div>
+        </div>
+        <div class="workspace-mock-title">Azure Databricks Workspace — adb-prod-eastus2.azuredatabricks.net (0014)</div>
+        <div style="color: #00A972; font-size: 0.72rem; font-weight: 700;">CONNECTED • DBR 15.4 LTS PHOTON</div>
+      </div>
+      <div style="padding: 1.2rem; background: #141E24; color: #E1E8ED; font-family: monospace; font-size: 0.85rem; line-height: 1.6;">
+        <div style="color: #8BA2AD; margin-bottom: 0.8rem;">// Console interativo do Azure Databricks — Simulação da Lição 0014</div>
+        <div style="color: #FF5A36;">%python</div>
+        <div><span style="color: #0078D4;">import</span> dlt</div>
+        <div><span style="color: #0078D4;">from</span> pyspark.sql.functions <span style="color: #0078D4;">import</span> col, current_timestamp, expr</div>
+        <div style="margin: 0.5rem 0; color: #536B75;"># Executando validação de governança e métricas de execução</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.optimizeWrite.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.autoCompact.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div style="margin-top: 0.6rem; color: #00A972;">✓ SparkSession ativa: driver 10.0.1.4 | Cluster: Job-Cluster-0014 | DBUs/h: 1.5</div>
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Conteúdo Teórico Chaveado por Nível -->
+    <section id="bloco-teoria" class="vark-section">
+      <span class="vark-badge vark-badge-r">📖 Conteúdo Teórico &amp; Matrizes de Decisão</span>
+
+      <!-- 1. TEXTO DA VISÃO UNIFICADA COMPLETA (Padrão DP-700) -->
+      <div class="lens-text-content" data-lens="unificado" data-lens-block>
+        <div class="unified-lens-box">
+          <h3 style="margin-top: 0; font-size: 1.05rem;">🌐 Visão Unificada Completa: Integração Arquitetural de Ponta a Ponta</h3>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            Construa pipelines confiáveis com Delta Live Tables (Lakeflow): crie Streaming Tables, Materialized Views, garanta qualidade de dados com Expectations e aplique CDC com APPLY CHANGES INTO. Esta lição articula a ponte entre os fundamentos conceituais, a prática de engenharia no Azure Databricks e os critérios rigorosos de aprovação no exame Microsoft DP-750.
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>No dia a dia prático:</strong> Delta Live Tables (DLT) simplifica o desenvolvimento de ETL através de um framework puramente declarativo em SQL (`CREATE OR REFRESH STREAMING TABLE`) ou Python (`@dlt.table`). DLT gerencia automaticamente o grafo acíclico dirigido (DAG), orquestração de dependências, tratamento de erros e infraestrutura de cluster. As Data Quality Expectations garantem governança em três níveis: 1) `@dlt.expect('nome', 'condição')` (apenas registra no log de qualidade), 2) `@dlt.expect_or_drop('nome', 'condição')` (descarta a linha inválida e prossegue), e 3) `@dlt.expect_or_fail('nome', 'condição')` (aborta o pipeline imediatamente). Para ingestão de CDC (Change Data Capture), a instrução `dlt.apply_changes()` processa automaticamente upserts de chaves com SCD Tipo 1 ou Tipo 2.
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>Diretriz oficial DP-750 &amp; Decisão Arquitetural:</strong> Questão recorrente no DP-750: Diferença crucial entre Streaming Tables e Materialized Views no DLT! Streaming Tables processam dados de fontes append-only de forma estritamente incremental e mantêm o histórico da tabela mesmo que os dados na fonte original sejam descartados. Materialized Views recalculam os resultados para refletir o estado mais recente dos dados da fonte (ideal para agregações complexas, joins e tabelas Gold de BI).
+          </p>
+          <p style="margin-bottom: 0; line-height: 1.65;">
+            <strong>Mecânica Interna &amp; Governança Executiva:</strong> O DLT grava todas as métricas de execução, qualidade de dados (linhas aprovadas, linhas descartadas) e linhagem em um Event Log em formato Delta Lake armazenado no storage do pipeline. Engenheiros podem consultar esse Event Log via SQL para criar dashboards operacionais de observabilidade corporativa. Em termos de FinOps corporativo: Confiabilidade de Dados (Data Reliability): O DLT transforma a engenharia de dados em um processo auditável com SLAs mensuráveis, eliminando custos de manutenção de scripts manuais de orquestração e garantindo que dados de baixa qualidade nunca alcancem relatórios de diretoria.
+          </p>
+        </div>
+      </div>
+
+      <!-- 2. Lente Júnior -->
+      <div class="lens-text-content" data-lens="junior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-junior">🌱 Lente Júnior: Fundamentos &amp; Analogia do Mundo Real</span>
+        <p>Delta Live Tables (DLT) é como a fábrica automatizada da montadora de carros: em vez de você ligar cada máquina, transportar peças no carrinho de mão e conferir parafuso por parafuso manualmente, você apenas define a planta da fábrica (código declarativo). A linha de produção anda sozinha e descarta peças defeituosas automaticamente (Expectations)!</p>
+      </div>
+
+      <!-- 3. Lente Pleno -->
+      <div class="lens-text-content" data-lens="pleno" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-pleno">🛠️ Lente Pleno: Engenharia Prática &amp; Implementação</span>
+        <p>Delta Live Tables (DLT) simplifica o desenvolvimento de ETL através de um framework puramente declarativo em SQL (`CREATE OR REFRESH STREAMING TABLE`) ou Python (`@dlt.table`). DLT gerencia automaticamente o grafo acíclico dirigido (DAG), orquestração de dependências, tratamento de erros e infraestrutura de cluster. As Data Quality Expectations garantem governança em três níveis: 1) `@dlt.expect('nome', 'condição')` (apenas registra no log de qualidade), 2) `@dlt.expect_or_drop('nome', 'condição')` (descarta a linha inválida e prossegue), e 3) `@dlt.expect_or_fail('nome', 'condição')` (aborta o pipeline imediatamente). Para ingestão de CDC (Change Data Capture), a instrução `dlt.apply_changes()` processa automaticamente upserts de chaves com SCD Tipo 1 ou Tipo 2.</p>
+        <label for="sn-0014-1" class="margin-toggle sidenote-number"></label>
+        <input type="checkbox" id="sn-0014-1" class="margin-toggle"/>
+        <span class="sidenote">Nota prática de engenharia: A adesão estrita aos padrões de convenção evita regressões em produção e garante portabilidade imediata para ambientes multirregionais no Azure.</span>
+      </div>
+
+      <!-- 4. Lente Sênior & Exame DP-750 -->
+      <div class="lens-text-content" data-lens="senior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-senior">🎯 Lente Sênior: Foco no Exame DP-750 &amp; Pegadinhas Oficiais</span>
+        <p>Questão recorrente no DP-750: Diferença crucial entre Streaming Tables e Materialized Views no DLT! Streaming Tables processam dados de fontes append-only de forma estritamente incremental e mantêm o histórico da tabela mesmo que os dados na fonte original sejam descartados. Materialized Views recalculam os resultados para refletir o estado mais recente dos dados da fonte (ideal para agregações complexas, joins e tabelas Gold de BI).</p>
+        <blockquote>
+          <strong>⚠️ Dica Crítica de Exame Microsoft DP-750:</strong> Preste extrema atenção aos enunciados que mencionam restrições orçamentárias (FinOps) vs restrições de latência. A resposta tecnicamente mais veloz nem sempre é a correta se violar a diretriz de menor custo de DBUs do enunciado.
+        </blockquote>
+      </div>
+
+      <!-- 5. Lente Staff / Internals -->
+      <div class="lens-text-content" data-lens="staff" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-staff">⚙️ Lente Staff: Mecânica Interna &amp; Algoritmos Sob o Capô</span>
+        <p>O DLT grava todas as métricas de execução, qualidade de dados (linhas aprovadas, linhas descartadas) e linhagem em um Event Log em formato Delta Lake armazenado no storage do pipeline. Engenheiros podem consultar esse Event Log via SQL para criar dashboards operacionais de observabilidade corporativa.</p>
+      </div>
+
+      <!-- 6. Lente C-Level / FinOps -->
+      <div class="lens-text-content" data-lens="c-level" data-lens-alt="clevel" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-c-level">🏛️ Lente C-Level: Governança, TCO &amp; FinOps de DBUs</span>
+        <p>Confiabilidade de Dados (Data Reliability): O DLT transforma a engenharia de dados em um processo auditável com SLAs mensuráveis, eliminando custos de manutenção de scripts manuais de orquestração e garantindo que dados de baixa qualidade nunca alcancem relatórios de diretoria.</p>
+      </div>
+
+      <!-- Tabela ASCII de Alta Densidade Tufte -->
+      <div class="fullwidth" style="margin: 2rem 0;">
+        <h3>📊 Matriz de Decisão Arquitetural — Lição 0014</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Critério / Dimensão</th>
+              <th>Abordagem Convencional (Legada)</th>
+              <th>Padrão Ouro Azure Databricks (DP-750)</th>
+              <th>Impacto em FinOps &amp; SLA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Governança de Dados</strong></td>
+              <td>Hive Metastore e montagens DBFS locais</td>
+              <td>Unity Catalog (3-Level Namespace: cat.sch.tbl)</td>
+              <td>Zero vazamento de credenciais; trilha de auditoria centralizada</td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de Computação</strong></td>
+              <td>All-Purpose Clusters com autotermination desligado</td>
+              <td>Job Clusters efêmeros ou Serverless Compute</td>
+              <td>Redução de até 60% no consumo de DBUs por execução</td>
+            </tr>
+            <tr>
+              <td><strong>Otimização de Armazenamento</strong></td>
+              <td>Particionamento rígido com centenas de subdiretórios</td>
+              <td>Liquid Clustering (CLUSTER BY) + Deletion Vectors</td>
+              <td>Eliminação de skew e mutações sem reescrever Parquets</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Laboratório Prático Passo a Passo -->
+    <section id="bloco-pratica" class="vark-section">
+      <span class="vark-badge vark-badge-k">🛠️ Laboratório Prático Passo a Passo (Padrão Microsoft Learn)</span>
+
+      <!-- Hands-on Lab Passo a Passo com Aviso Azure -->
+      
+    <!-- BANNER DE PRÉ-REQUISITO OBRIGATÓRIO DA AZURE -->
+    <div class="lab-prereq-banner">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <h4>
+          PRÉ-REQUISITO OBRIGATÓRIO DA AZURE (Microsoft Learn Standards)
+        </h4>
+        <p>
+          Para realizar este laboratório prático e executar os comandos reais, criar clusters, pipelines Delta Live Tables (DLT) e tabelas do Unity Catalog, <strong>você precisará de um Workspace do Azure Databricks alocado na sua assinatura do Microsoft Azure</strong> (Recomendado tier Premium para suporte completo a Unity Catalog e Serverless Compute).
+        </p>
+        <div style="margin-top: 0.6rem; font-size: 0.85rem; opacity: 0.9;">
+          <strong>Pré-requisitos Técnicos:</strong> Azure Databricks Workspace com acesso à criação de Pipelines Delta Live Tables.
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTRUTURA DO LAB PASSO A PASSO -->
+    <div class="lab-container">
+      <div class="lab-header">
+        <div>
+          <span style="font-size: 0.72rem; font-weight: 800; background: #0078D4; color: #FFFFFF; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">
+            Hands-on Lab Walkthrough
+          </span>
+          <h3 style="margin: 0.4rem 0 0 0; font-size: 1.2rem;">Lab 0014: Pipelines Declarativos com Delta Live Tables (DLT) e Expectations</h3>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 0.85rem; font-weight: 600;">⏱️ Tempo Estimado: 45 minutos</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <strong style="font-size: 0.95rem;">📖 Cenário do Laboratório:</strong>
+        <p style="margin: 0.3rem 0; font-size: 0.92rem; line-height: 1.6;">
+          Construir um pipeline corporativo DLT em Python declarativo com Streaming Tables, Materialized Views e regras de qualidade de dados (Expectations: EXPECT, DROP ROW, FAIL UPDATE).
+        </p>
+      </div>
+
+      <!-- Tarefas Passo a Passo -->
+      <div style="margin-top: 1.5rem;">
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 1</span>
+            Criar o Arquivo de Código Python do DLT
+          </h4>
+          <p style="white-space: pre-line;">
+            1. No Workspace, crie um notebook chamado `dlt_orders_pipeline` com linguagem Python.
+2. Insira o código declarativo oficial do DLT:
+          </p>
+          
+            <div style="margin: 0.8rem 0;">
+              <span style="font-size: 0.75rem; font-weight: 700; color: #536B75; text-transform: uppercase;">Código para colar na célula do Notebook Databricks:</span>
+              <pre><code># COMMAND ----------
+import dlt
+from pyspark.sql.functions import col, expr
+
+# 1. Camada Bronze: Streaming Table ingerindo dados contínuos
+@dlt.table(
+    name="bronze_pedidos_raw",
+    comment="Tabela Bronze de pedidos brutos"
+)
+def bronze_pedidos_raw():
+    return (spark.readStream
+        .format("cloudFiles")
+        .option("cloudFiles.format", "json")
+        .load("/tmp/dlt_pedidos_in/"))
+
+# 2. Camada Silver: Com Expectations de governança de qualidade
+@dlt.table(
+    name="silver_pedidos_validos",
+    comment="Tabela Silver com regras de integridade"
+)
+@dlt.expect_or_drop("valor_positivo", "valor > 0")
+@dlt.expect("cliente_obrigatorio", "cliente_id IS NOT NULL")
+def silver_pedidos_validos():
+    return dlt.read_stream("bronze_pedidos_raw").select("pedido_id", "cliente_id", "valor")
+
+# 3. Camada Gold: Materialized View agregada para relatórios de BI
+@dlt.table(
+    name="gold_faturamento_cliente",
+    comment="Visão materializada de faturamento"
+)
+def gold_faturamento_cliente():
+    return (dlt.read("silver_pedidos_validos")
+        .groupBy("cliente_id")
+        .agg(expr("sum(valor) as total_gasto")))</code></pre>
+            </div>
+            
+          
+            <div style="background: #0B161B; border: 1px solid #253D47; border-radius: 6px; padding: 0.8rem 1rem; margin: 0.6rem 0; font-family: monospace; font-size: 0.82rem; color: #00A972;">
+              <span style="color: #8BA2AD; font-size: 0.72rem; display: block; margin-bottom: 0.3rem;">✓ Saída Esperada no Console Databricks:</span>
+              ✓ Código DLT salvo no notebook.
+            </div>
+            
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 2</span>
+            Criar e Executar o Pipeline no Delta Live Tables UI
+          </h4>
+          <p style="white-space: pre-line;">
+            1. No menu lateral do Databricks, clique em 'Delta Live Tables' (ou 'Pipelines').
+2. Clique em 'Create pipeline'.
+3. Configure:
+   - Pipeline name: `DP750-Orders-DLT`
+   - Source code: selecione o notebook `dlt_orders_pipeline` recém-criado.
+   - Destination: Unity Catalog (selecione seu catálogo e schema).
+   - Pipeline mode: 'Triggered' (para execução sob demanda) e 'Development' (mantém o cluster pré-aquecido).
+4. Clique em 'Start'.
+5. Observe o grafo acíclico dirigido (DAG) verde se formando na interface e inspecione as métricas de linhas aprovadas e descartadas pela Expectation!
+          </p>
+          
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Desafio do Exame DP-750 com Embaralhamento Fisher-Yates -->
+    <section id="bloco-quiz" class="vark-section">
+      <div class="flash-quiz-box">
+        <div class="flash-quiz-header">
+          <h4 class="flash-quiz-title">🎯 Desafio Flash DP-750</h4>
+          <button type="button" class="btn-shuffle" title="Embaralha as alternativas usando o algoritmo Fisher-Yates">
+            <span>🔀 Embaralhar Novamente</span>
+          </button>
+        </div>
+        <div class="flash-question-text">Um engenheiro de dados está implementando um pipeline Delta Live Tables (DLT) para processar transações financeiras. A regra de negócio exige que se uma transação tiver valor nulo ou negativo (valor <= 0), essa linha específica deve ser descartada do conjunto de dados processado, mas o pipeline deve continuar executando sem falhar. Qual expectation deve ser utilizada?</div>
+        <div class="flash-options-list">
+          
+          <div class="flash-option-item" data-correct="true" data-explanation="A cláusula ON VIOLATION DROP ROW (ou @dlt.expect_or_drop em Python) descarta silenciosamente as linhas que violam a condição e continua o processamento das linhas válidas.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">CONSTRAINT transacao_valida EXPECT (valor > 0) ON VIOLATION DROP ROW</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="ON VIOLATION FAIL UPDATE interrompe e falha o pipeline inteiro na primeira linha inválida encontrada.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">CONSTRAINT transacao_valida EXPECT (valor > 0) ON VIOLATION FAIL UPDATE</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="A forma básica sem ação explícita apenas registra métricas no log de eventos, mas mantém as linhas inválidas na tabela de destino.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">CONSTRAINT transacao_valida EXPECT (valor > 0)</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="Sintaxe inexistente no framework de Expectations do Delta Live Tables.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">THROW ERROR WHEN valor <= 0</span>
+          </div>
+          
+        </div>
+        <div class="flash-feedback-box"></div>
+      </div>
+    </section>
+
+    <!-- Navegação de Rodapé entre Lições -->
+    <footer class="lesson-footer">
+      <div><a href="0013-liquid-clustering-deletion-vectors-caching.html" class="nav-btn">← Lição Anterior</a></div>
+      <div class="lesson-footer-counter">Lição 0014 de 0015</div>
+      <div><a href="0015-orquestracao-dabs-cicd-system-tables.html" class="nav-btn">Próxima Lição →</a></div>
+    </footer>
+  </article>
+
+  <!-- Sticky Audio Player com Narração Neural PT-BR -->
+  <aside class="sticky-audio-bar" id="sticky-audio-bar">
+    <audio id="lesson-audio" preload="auto">
+      <source src="../assets/audio/lesson-0014-pt.mp3" type="audio/mpeg">
+    </audio>
+    <div class="audio-info">
+      <span class="audio-icon">🎧</span>
+      <div>
+        <p class="audio-text-title">Narração da Lição 0014</p>
+        <p class="audio-text-sub">Áudio Neural PT-BR • Pronúncia Técnica Databricks (Kokoro 82M)</p>
+      </div>
+    </div>
+    <div class="audio-controls">
+      <button class="audio-btn audio-btn-play" id="btn-audio-play" title="Reproduzir / Pausar Áudio">▶</button>
+      <div class="audio-progress-bar" id="audio-progress-bar">
+        <div class="audio-progress-fill" id="audio-progress-fill"></div>
+      </div>
+      <span class="audio-time"><span id="audio-time-current">00:00</span> / <span id="audio-time-total">00:00</span></span>
+      <button class="audio-speed-btn" id="btn-audio-speed" title="Velocidade de Reprodução">1x</button>
+    </div>
+    <div class="audio-actions">
+      <button type="button" class="audio-tool-btn" id="btn-audio-pin" title="Alternar entre barra fixa na base ou embutida no final da página">
+        <span class="pin-icon">📌</span>
+        <span class="pin-label">Fixado</span>
+      </button>
+      <button type="button" class="audio-tool-btn audio-btn-close" id="btn-audio-hide" title="Ocultar Tocador de Áudio (recolher para pílula flutuante)">
+        <span>▼</span>
+        <span class="hide-label">Ocultar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Pílula Flutuante Discreta para Reabrir o Player quando Oculto -->
+  <button type="button" class="audio-reopen-pill" id="btn-audio-reopen" title="Expandir Tocador de Áudio da Lição" style="display: none;">
+    <span class="pill-icon">🎧</span>
+    <span class="pill-label">Áudio 0014</span>
+    <span class="pill-play-state" id="pill-play-state">▶</span>
+  </button>
+
+</body>
+</html>

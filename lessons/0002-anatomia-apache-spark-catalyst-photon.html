@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lição 0002: Anatomia do Apache Spark, Catalyst Optimizer & Photon Vectorized Engine | Databricks Formation DP-750</title>
+  <meta name="description" content="Compreenda a distribuição física do Apache Spark (Driver, Executors, Jobs, Stages, Tasks), a dinâmica de Shuffle e a revolução da engine Photon C++ integrada ao Catalyst Optimizer.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#modulo-0" class="active">Módulo 0</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><a href="../reference/01-spark-and-databricks-architecture-visual-guide.html">Folhas de Referência</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Lições Rápidas:</span>
+      <a href="0001-arquitetura-azure-databricks-compute-dbus.html" class="index-chip ">0001</a>
+      <a href="0002-anatomia-apache-spark-catalyst-photon.html" class="index-chip active">0002</a>
+      <a href="0003-protocolo-delta-lake-acid-time-travel.html" class="index-chip ">0003</a>
+      <a href="0004-workspaces-entra-id-vnet-private-link.html" class="index-chip ">0004</a>
+      <a href="0005-clusters-policies-pools-serverless-sql.html" class="index-chip ">0005</a>
+      <a href="0006-integracao-azure-keyvault-adls-external.html" class="index-chip ">0006</a>
+      <a href="0007-unity-catalog-metastore-namespace-volumes.html" class="index-chip ">0007</a>
+      <a href="0008-controle-acesso-fino-row-column-masks.html" class="index-chip ">0008</a>
+      <a href="0009-linhagem-system-tables-delta-sharing.html" class="index-chip ">0009</a>
+      <a href="0010-ingestao-autoloader-copyinto-lakeflow.html" class="index-chip ">0010</a>
+      <a href="0011-medallion-pyspark-sparksql-scd1-scd2.html" class="index-chip ">0011</a>
+      <a href="0012-structured-streaming-watermark-joins.html" class="index-chip ">0012</a>
+      <a href="0013-liquid-clustering-deletion-vectors-caching.html" class="index-chip ">0013</a>
+      <a href="0014-delta-live-tables-streaming-views-expectations.html" class="index-chip ">0014</a>
+      <a href="0015-orquestracao-dabs-cicd-system-tables.html" class="index-chip ">0015</a>
+      <a href="../simulados/index.html" class="index-chip special">Simulado (+180Q)</a>
+    </div>
+  </nav>
+
+  <article>
+    <!-- Header da Lição -->
+    <div id="bloco-contexto" style="margin-bottom: 1.5rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #FF3621; text-transform: uppercase; letter-spacing: 0.05em;">Módulo 0: Fundamentos de Apache Spark, Delta Lake & Lakehouse</span>
+      <h1>Lição 0002: Anatomia do Apache Spark, Catalyst Optimizer & Photon Vectorized Engine</h1>
+      <p class="subtitle">Compreenda a distribuição física do Apache Spark (Driver, Executors, Jobs, Stages, Tasks), a dinâmica de Shuffle e a revolução da engine Photon C++ integrada ao Catalyst Optimizer.</p>
+    </div>
+
+    <!-- Barra de Nível / Lente (Persistência Global no padrão DP-700) -->
+    <nav class="lens-selector-bar">
+      <span>Nível Ativo:</span>
+      <button class="lens-btn active" data-lens="unificado" data-lens-target="all">
+        <span>🌐 Visão Unificada</span>
+        <span class="lens-key-badge">0</span>
+      </button>
+      <button class="lens-btn" data-lens="junior" data-lens-target="junior">
+        <span>🌱 Júnior</span>
+        <span class="lens-key-badge">1</span>
+      </button>
+      <button class="lens-btn" data-lens="pleno" data-lens-target="pleno">
+        <span>🛠️ Pleno</span>
+        <span class="lens-key-badge">2</span>
+      </button>
+      <button class="lens-btn" data-lens="senior" data-lens-target="senior">
+        <span>🎯 Sênior &amp; DP-750</span>
+        <span class="lens-key-badge">3</span>
+      </button>
+      <button class="lens-btn" data-lens="staff" data-lens-target="staff">
+        <span>⚙️ Staff</span>
+        <span class="lens-key-badge">4</span>
+      </button>
+      <button class="lens-btn" data-lens="clevel" data-lens-target="c-level">
+        <span>🏛️ C-Level</span>
+        <span class="lens-key-badge">5</span>
+      </button>
+      <div class="current-lens-badge" id="current-profile-label">🌐 Visão Unificada Completa</div>
+    </nav>
+
+    <!-- Barra de Navegação Rápida da Lição -->
+    <div class="vark-nav-bar">
+      <span>Navegação da Lição:</span>
+      <a href="#bloco-audio" class="vark-pill">🎧 Áudio Explicativo</a>
+      <a href="#bloco-visual" class="vark-pill">👁️ Arquitetura Visual</a>
+      <a href="#bloco-teoria" class="vark-pill">📖 Teoria &amp; Decisões</a>
+      <a href="#bloco-pratica" class="vark-pill">🛠️ Lab Hands-on</a>
+      <a href="#bloco-quiz" class="vark-pill">🎯 Desafio do Exame</a>
+    </div>
+
+    <!-- Narração Técnica em Áudio -->
+    <section id="bloco-audio" class="vark-section">
+      <span class="vark-badge vark-badge-a">🎧 Narração da Aula &amp; Termos Oficiais</span>
+      <p>
+        Acompanhe a explicação técnica em áudio desta lição, com pronúncia calibrada dos termos oficiais em inglês do Azure Databricks (ex: <em>Catalyst Optimizer, Photon, Liquid Clustering, Deletion Vectors, Delta Log</em>).
+      </p>
+      <div class="audio-hint-box">
+        <strong>Controle de Reprodução:</strong> Utilize o player na base da tela para iniciar o áudio, ajustar a velocidade (1x, 1.25x, 1.5x, 2x) ou use os botões <strong>Fixar/Desafixar</strong> e <strong>Ocultar</strong> para personalizar sua experiência de leitura.
+        <div style="margin-top: 0.75rem; display: flex; gap: 0.6rem; flex-wrap: wrap;">
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPlayFromSection()">
+            <span>▶️ Ouvir Lição Agora</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPin()">
+            <span class="inline-pin-label">📍 Desafixar da Base</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioHide(true)">
+            <span>▼ Ocultar Player</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Arquitetura Visual & Workspace -->
+    <section id="bloco-visual" class="vark-section">
+      <span class="vark-badge vark-badge-v">👁️ Arquitetura de Referência &amp; Console Interativo</span>
+      
+    <div class="svg-diagram-wrapper">
+      <svg viewBox="0 0 960 360" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad-db-0002" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1B3139"/>
+            <stop offset="100%" stop-color="#111E24"/>
+          </linearGradient>
+          <linearGradient id="grad-accent-0002" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#FF3621"/>
+            <stop offset="100%" stop-color="#FF5A36"/>
+          </linearGradient>
+          <filter id="shadow-0002" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.15"/>
+          </filter>
+        </defs>
+
+        <rect x="10" y="10" width="940" height="340" rx="12" fill="#F8FAFC" stroke="#D1DDE5" stroke-width="1.5"/>
+        <rect x="10" y="10" width="940" height="50" rx="12" fill="url(#grad-db-0002)"/>
+        <rect x="10" y="48" width="940" height="12" fill="#111E24"/>
+        <text x="35" y="42" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="700" letter-spacing="0.5">
+          ARQUITETURA DE REFERÊNCIA DP-750 — 0002
+        </text>
+        <text x="890" y="42" fill="#FF5A36" font-family="monospace" font-size="14" font-weight="700" text-anchor="end">
+          AZURE DATABRICKS
+        </text>
+
+        <!-- Bloco 1: Controle & Origem -->
+        <g transform="translate(40, 85)" filter="url(#shadow-0002)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#0078D4" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="#0078D4"/>
+          <rect x="0" y="30" width="260" height="8" fill="#0078D4"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">1. CONTROLE &amp; ORIGEM</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="80" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Microsoft Entra ID / SCIM</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="135" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Azure Key Vault / Secret</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="190" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Control Plane (WebApp/UI)</text>
+        </g>
+
+        <!-- Seta 1 para 2 -->
+        <path d="M 310 200 L 345 200" stroke="#FF3621" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="345,194 357,200 345,206" fill="#FF3621"/>
+
+        <!-- Bloco 2: Compute Plane -->
+        <g transform="translate(360, 85)" filter="url(#shadow-0002)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#FF3621" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="url(#grad-accent-0002)"/>
+          <rect x="0" y="30" width="260" height="8" fill="#FF5A36"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">2. COMPUTE PLANE &amp; SPARK</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="80" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Photon Engine C++ / DBR</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="135" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Job Cluster / Serverless</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="190" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Catalyst Logical &amp; Physical</text>
+        </g>
+
+        <!-- Seta 2 para 3 -->
+        <path d="M 630 200 L 665 200" stroke="#00A972" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="665,194 677,200 665,206" fill="#00A972"/>
+
+        <!-- Bloco 3: Unity Catalog & Delta -->
+        <g transform="translate(680, 85)" filter="url(#shadow-0002)">
+          <rect x="0" y="0" width="240" height="230" rx="8" fill="#FFFFFF" stroke="#00A972" stroke-width="2"/>
+          <rect x="0" y="0" width="240" height="38" rx="8" fill="#00A972"/>
+          <rect x="0" y="30" width="240" height="8" fill="#00A972"/>
+          <text x="120" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">3. UNITY CATALOG &amp; DELTA</text>
+          
+          <rect x="15" y="55" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="80" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Namespace: cat.sch.tbl</text>
+          
+          <rect x="15" y="110" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="135" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Delta Log (_delta_log JSON)</text>
+          
+          <rect x="15" y="165" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="190" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">ADLS Gen2 Parquet / DVs</text>
+        </g>
+      </svg>
+      <div class="svg-caption">Figura 0002.1: Fluxo arquitetural do Azure Databricks detalhando a segregação de responsabilidades do exame DP-750.</div>
+    </div>
+    
+      
+    <div class="workspace-mock-frame">
+      <div class="workspace-mock-header">
+        <div class="workspace-mock-dots">
+          <div class="mock-dot mock-dot-red"></div>
+          <div class="mock-dot mock-dot-yellow"></div>
+          <div class="mock-dot mock-dot-green"></div>
+        </div>
+        <div class="workspace-mock-title">Azure Databricks Workspace — adb-prod-eastus2.azuredatabricks.net (0002)</div>
+        <div style="color: #00A972; font-size: 0.72rem; font-weight: 700;">CONNECTED • DBR 15.4 LTS PHOTON</div>
+      </div>
+      <div style="padding: 1.2rem; background: #141E24; color: #E1E8ED; font-family: monospace; font-size: 0.85rem; line-height: 1.6;">
+        <div style="color: #8BA2AD; margin-bottom: 0.8rem;">// Console interativo do Azure Databricks — Simulação da Lição 0002</div>
+        <div style="color: #FF5A36;">%python</div>
+        <div><span style="color: #0078D4;">import</span> dlt</div>
+        <div><span style="color: #0078D4;">from</span> pyspark.sql.functions <span style="color: #0078D4;">import</span> col, current_timestamp, expr</div>
+        <div style="margin: 0.5rem 0; color: #536B75;"># Executando validação de governança e métricas de execução</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.optimizeWrite.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.autoCompact.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div style="margin-top: 0.6rem; color: #00A972;">✓ SparkSession ativa: driver 10.0.1.4 | Cluster: Job-Cluster-0002 | DBUs/h: 1.5</div>
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Conteúdo Teórico Chaveado por Nível -->
+    <section id="bloco-teoria" class="vark-section">
+      <span class="vark-badge vark-badge-r">📖 Conteúdo Teórico &amp; Matrizes de Decisão</span>
+
+      <!-- 1. TEXTO DA VISÃO UNIFICADA COMPLETA (Padrão DP-700) -->
+      <div class="lens-text-content" data-lens="unificado" data-lens-block>
+        <div class="unified-lens-box">
+          <h3 style="margin-top: 0; font-size: 1.05rem;">🌐 Visão Unificada Completa: Integração Arquitetural de Ponta a Ponta</h3>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            Compreenda a distribuição física do Apache Spark (Driver, Executors, Jobs, Stages, Tasks), a dinâmica de Shuffle e a revolução da engine Photon C++ integrada ao Catalyst Optimizer. Esta lição articula a ponte entre os fundamentos conceituais, a prática de engenharia no Azure Databricks e os critérios rigorosos de aprovação no exame Microsoft DP-750.
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>No dia a dia prático:</strong> Um programa Spark submete Ações (como .count(), .write(), .collect()) que disparam Jobs. Cada Job é fragmentado em Stages divididos por limites de Shuffle (operações de Wide Transformation como groupBy, join, distinct). Os Stages são quebrados em Tasks, que representam a unidade elementar de execução processando uma partição de dados em um Core/Slot de Executor. O Catalyst Optimizer atua compilando a query em 4 fases: Resolved Logical Plan, Analyzed Logical Plan, Optimized Logical Plan (com Predicate Pushdown e Column Pruning) e Physical Plan com geração de código Java bytecode (Tungsten).
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>Diretriz oficial DP-750 &amp; Decisão Arquitetural:</strong> No exame DP-750, a chave para performance é evitar Shuffles desnecessários (troca massiva de dados pela rede entre executors). O Photon Engine é o motor de execução nativo da Databricks reescrito do zero em C++, que substitui o Tungsten. Ele opera execução vetorizada (SIMD) processando milhares de linhas por instrução de CPU em memória colunar, acelerando agregações, joins e scans em até 3x a 8x em relação ao Spark tradicional.
+          </p>
+          <p style="margin-bottom: 0; line-height: 1.65;">
+            <strong>Mecânica Interna &amp; Governança Executiva:</strong> O Photon trabalha diretamente no nível da instrução de máquina, eliminando a sobrecarga de Garbage Collection (GC) da JVM e otimizando o branch prediction da CPU. Quando o Catalyst gera o Physical Plan, ele substitui os operadores WholeStageCodegen convencionais por nós Photon (ex: PhotonFilter, PhotonHashAggregate, PhotonShuffleExchangeExec), garantindo fallback transparente para JVM caso uma função não suportada (como uma UDF Python não vetorizada) seja encontrada. Em termos de FinOps corporativo: Embora clusters habilitados com Photon possuam um multiplicador ligeiramente maior na cobrança de DBUs, o ganho de velocidade (redução do tempo de pipeline pela metade ou um terço) resulta em um custo total final menor (menor tempo de VM Azure + menor tempo de cluster ativo).
+          </p>
+        </div>
+      </div>
+
+      <!-- 2. Lente Júnior -->
+      <div class="lens-text-content" data-lens="junior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-junior">🌱 Lente Júnior: Fundamentos &amp; Analogia do Mundo Real</span>
+        <p>O Driver do Spark é como o maestro de uma grande orquestra: ele não toca todos os instrumentos sozinho, mas divide a partitura completa em pequenas estrofes (Tasks) e distribui para os músicos (Executors). Cada executor toca sua parte em paralelo, e o resultado final é uma sinfonia executada em segundos!</p>
+      </div>
+
+      <!-- 3. Lente Pleno -->
+      <div class="lens-text-content" data-lens="pleno" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-pleno">🛠️ Lente Pleno: Engenharia Prática &amp; Implementação</span>
+        <p>Um programa Spark submete Ações (como .count(), .write(), .collect()) que disparam Jobs. Cada Job é fragmentado em Stages divididos por limites de Shuffle (operações de Wide Transformation como groupBy, join, distinct). Os Stages são quebrados em Tasks, que representam a unidade elementar de execução processando uma partição de dados em um Core/Slot de Executor. O Catalyst Optimizer atua compilando a query em 4 fases: Resolved Logical Plan, Analyzed Logical Plan, Optimized Logical Plan (com Predicate Pushdown e Column Pruning) e Physical Plan com geração de código Java bytecode (Tungsten).</p>
+        <label for="sn-0002-1" class="margin-toggle sidenote-number"></label>
+        <input type="checkbox" id="sn-0002-1" class="margin-toggle"/>
+        <span class="sidenote">Nota prática de engenharia: A adesão estrita aos padrões de convenção evita regressões em produção e garante portabilidade imediata para ambientes multirregionais no Azure.</span>
+      </div>
+
+      <!-- 4. Lente Sênior & Exame DP-750 -->
+      <div class="lens-text-content" data-lens="senior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-senior">🎯 Lente Sênior: Foco no Exame DP-750 &amp; Pegadinhas Oficiais</span>
+        <p>No exame DP-750, a chave para performance é evitar Shuffles desnecessários (troca massiva de dados pela rede entre executors). O Photon Engine é o motor de execução nativo da Databricks reescrito do zero em C++, que substitui o Tungsten. Ele opera execução vetorizada (SIMD) processando milhares de linhas por instrução de CPU em memória colunar, acelerando agregações, joins e scans em até 3x a 8x em relação ao Spark tradicional.</p>
+        <blockquote>
+          <strong>⚠️ Dica Crítica de Exame Microsoft DP-750:</strong> Preste extrema atenção aos enunciados que mencionam restrições orçamentárias (FinOps) vs restrições de latência. A resposta tecnicamente mais veloz nem sempre é a correta se violar a diretriz de menor custo de DBUs do enunciado.
+        </blockquote>
+      </div>
+
+      <!-- 5. Lente Staff / Internals -->
+      <div class="lens-text-content" data-lens="staff" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-staff">⚙️ Lente Staff: Mecânica Interna &amp; Algoritmos Sob o Capô</span>
+        <p>O Photon trabalha diretamente no nível da instrução de máquina, eliminando a sobrecarga de Garbage Collection (GC) da JVM e otimizando o branch prediction da CPU. Quando o Catalyst gera o Physical Plan, ele substitui os operadores WholeStageCodegen convencionais por nós Photon (ex: PhotonFilter, PhotonHashAggregate, PhotonShuffleExchangeExec), garantindo fallback transparente para JVM caso uma função não suportada (como uma UDF Python não vetorizada) seja encontrada.</p>
+      </div>
+
+      <!-- 6. Lente C-Level / FinOps -->
+      <div class="lens-text-content" data-lens="c-level" data-lens-alt="clevel" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-c-level">🏛️ Lente C-Level: Governança, TCO &amp; FinOps de DBUs</span>
+        <p>Embora clusters habilitados com Photon possuam um multiplicador ligeiramente maior na cobrança de DBUs, o ganho de velocidade (redução do tempo de pipeline pela metade ou um terço) resulta em um custo total final menor (menor tempo de VM Azure + menor tempo de cluster ativo).</p>
+      </div>
+
+      <!-- Tabela ASCII de Alta Densidade Tufte -->
+      <div class="fullwidth" style="margin: 2rem 0;">
+        <h3>📊 Matriz de Decisão Arquitetural — Lição 0002</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Critério / Dimensão</th>
+              <th>Abordagem Convencional (Legada)</th>
+              <th>Padrão Ouro Azure Databricks (DP-750)</th>
+              <th>Impacto em FinOps &amp; SLA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Governança de Dados</strong></td>
+              <td>Hive Metastore e montagens DBFS locais</td>
+              <td>Unity Catalog (3-Level Namespace: cat.sch.tbl)</td>
+              <td>Zero vazamento de credenciais; trilha de auditoria centralizada</td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de Computação</strong></td>
+              <td>All-Purpose Clusters com autotermination desligado</td>
+              <td>Job Clusters efêmeros ou Serverless Compute</td>
+              <td>Redução de até 60% no consumo de DBUs por execução</td>
+            </tr>
+            <tr>
+              <td><strong>Otimização de Armazenamento</strong></td>
+              <td>Particionamento rígido com centenas de subdiretórios</td>
+              <td>Liquid Clustering (CLUSTER BY) + Deletion Vectors</td>
+              <td>Eliminação de skew e mutações sem reescrever Parquets</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Laboratório Prático Passo a Passo -->
+    <section id="bloco-pratica" class="vark-section">
+      <span class="vark-badge vark-badge-k">🛠️ Laboratório Prático Passo a Passo (Padrão Microsoft Learn)</span>
+
+      <!-- Hands-on Lab Passo a Passo com Aviso Azure -->
+      
+    <!-- BANNER DE PRÉ-REQUISITO OBRIGATÓRIO DA AZURE -->
+    <div class="lab-prereq-banner">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <h4>
+          PRÉ-REQUISITO OBRIGATÓRIO DA AZURE (Microsoft Learn Standards)
+        </h4>
+        <p>
+          Para realizar este laboratório prático e executar os comandos reais, criar clusters, pipelines Delta Live Tables (DLT) e tabelas do Unity Catalog, <strong>você precisará de um Workspace do Azure Databricks alocado na sua assinatura do Microsoft Azure</strong> (Recomendado tier Premium para suporte completo a Unity Catalog e Serverless Compute).
+        </p>
+        <div style="margin-top: 0.6rem; font-size: 0.85rem; opacity: 0.9;">
+          <strong>Pré-requisitos Técnicos:</strong> Azure Databricks Workspace alocado no Azure com suporte a Photon (disponível em instâncias padrão de computação).
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTRUTURA DO LAB PASSO A PASSO -->
+    <div class="lab-container">
+      <div class="lab-header">
+        <div>
+          <span style="font-size: 0.72rem; font-weight: 800; background: #0078D4; color: #FFFFFF; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">
+            Hands-on Lab Walkthrough
+          </span>
+          <h3 style="margin: 0.4rem 0 0 0; font-size: 1.2rem;">Lab 0002: Análise de Planos de Execução do Catalyst e Photon Engine</h3>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 0.85rem; font-weight: 600;">⏱️ Tempo Estimado: 35 minutos</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <strong style="font-size: 0.95rem;">📖 Cenário do Laboratório:</strong>
+        <p style="margin: 0.3rem 0; font-size: 0.92rem; line-height: 1.6;">
+          Investigar a fundo os 4 estágios de otimização de consultas do Apache Spark (Resolved Logical, Analyzed, Optimized e Physical Plan) e comparar o ganho de throughput de scans e agregações com o Photon Vectorized Engine em C++.
+        </p>
+      </div>
+
+      <!-- Tarefas Passo a Passo -->
+      <div style="margin-top: 1.5rem;">
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 1</span>
+            Criar Cluster com Aceleração Photon Habilitada
+          </h4>
+          <p style="white-space: pre-line;">
+            1. No Databricks Workspace, navegue em 'Compute' > 'Create compute'.
+2. Habilite a caixa de seleção 'Use Photon Acceleration'.
+3. Selecione o runtime '15.4 LTS (Photon)' e configure autotermination para 20 minutos.
+4. Inicie o cluster 'dp750-photon-cluster'.
+          </p>
+          
+          
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 2</span>
+            Gerar Massa de Dados Sintética e Inspecionar o Plano Catalyst
+          </h4>
+          <p style="white-space: pre-line;">
+            1. Crie o notebook 'lab_0002_catalyst_photon' e anexe-o ao cluster Photon.
+2. Execute o código PySpark abaixo para inspecionar os planos lógico e físico:
+          </p>
+          
+            <div style="margin: 0.8rem 0;">
+              <span style="font-size: 0.75rem; font-weight: 700; color: #536B75; text-transform: uppercase;">Código para colar na célula do Notebook Databricks:</span>
+              <pre><code># COMMAND ----------
+from pyspark.sql.functions import col, expr, rand
+
+# Gera um DataFrame distribuído de 5 milhões de linhas para teste de stress
+df = spark.range(0, 5000000).withColumn("categoria", expr("CASE WHEN id % 4 = 0 THEN 'TECH' WHEN id % 4 = 1 THEN 'FIN' WHEN id % 4 = 2 THEN 'HEALTH' ELSE 'EDU' END")) \
+                           .withColumn("valor", rand() * 1000)
+
+# Consulta com agregação e filtro (Wide Transformation)
+df_analise = df.filter(col("valor") > 250) \
+               .groupBy("categoria") \
+               .agg(expr("sum(valor) as total_vendas"), expr("count(*) as transacoes"))
+
+# Inspeciona os 4 estágios do Catalyst Optimizer:
+print("=" * 70)
+print("PLANO DETALHADO DO CATALYST OPTIMIZER:")
+print("=" * 70)
+df_analise.explain(extended=True)</code></pre>
+            </div>
+            
+          
+            <div style="background: #0B161B; border: 1px solid #253D47; border-radius: 6px; padding: 0.8rem 1rem; margin: 0.6rem 0; font-family: monospace; font-size: 0.82rem; color: #00A972;">
+              <span style="color: #8BA2AD; font-size: 0.72rem; display: block; margin-bottom: 0.3rem;">✓ Saída Esperada no Console Databricks:</span>
+              == Parsed Logical Plan ==<br>'Aggregate ['categoria], ['categoria, sum('valor) AS total_vendas#..., count(1) AS transacoes#...]<br>+- 'Filter ('valor > 250)<br>== Analyzed Logical Plan ==<br>== Optimized Logical Plan ==<br>+- Filter (isnotnull(valor#...) AND (valor#... > 250.0))<br>== Physical Plan ==<br>AdaptiveSparkPlan isFinalPlan=false<br>+- PhotonHashAggregate...
+            </div>
+            
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 3</span>
+            Inspecionar Nós Photon na Spark UI
+          </h4>
+          <p style="white-space: pre-line;">
+            1. Execute a ação `.collect()` no notebook para disparar a execução física do Job:
+   `df_analise.show()`
+2. Clique no link 'View Spark UI' exibido logo abaixo da célula do notebook.
+3. Abra a aba 'SQL/Dataframe' e selecione a query executada.
+4. Observe o grafo físico gerado: identifique operadores prefixados com 'Photon' (ex: `PhotonScan`, `PhotonFilter`, `PhotonHashAggregate`). Isso comprova que a execução rodou em C++ vetorizado com instruções SIMD sem passar pela JVM!
+          </p>
+          
+          
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 4</span>
+            Limpeza de Recursos
+          </h4>
+          <p style="white-space: pre-line;">
+            1. Retorne ao menu Compute e dê 'Terminate' no cluster 'dp750-photon-cluster'.
+          </p>
+          
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Desafio do Exame DP-750 com Embaralhamento Fisher-Yates -->
+    <section id="bloco-quiz" class="vark-section">
+      <div class="flash-quiz-box">
+        <div class="flash-quiz-header">
+          <h4 class="flash-quiz-title">🎯 Desafio Flash DP-750</h4>
+          <button type="button" class="btn-shuffle" title="Embaralha as alternativas usando o algoritmo Fisher-Yates">
+            <span>🔀 Embaralhar Novamente</span>
+          </button>
+        </div>
+        <div class="flash-question-text">Um engenheiro de dados observa lentidão extrema em uma consulta que realiza agregações massivas e scans em tabelas Delta no Azure Databricks. A equipe precisa acelerar a execução sem alterar o código PySpark existente. Qual modificação de infraestrutura é mais eficiente?</div>
+        <div class="flash-options-list">
+          
+          <div class="flash-option-item" data-correct="true" data-explanation="O Photon Engine substitui a camada de execução JVM por C++ vetorizado com instruções SIMD sem exigir nenhuma alteração no código PySpark/SQL, acelerando diretamente scans, agregações e joins.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Habilitar a aceleração Photon no cluster Databricks Runtime (DBR).</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="Aumentar excessivamente as partições criará um problema severo de small tasks e sobrecarga de agendamento no Driver.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Aumentar o número de partições de shuffle para 10.000 via spark.sql.shuffle.partitions.</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="UDFs Python linha a linha forçam a serialização entre JVM/Python, degradam a performance e desabilitam as otimizações do Photon.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Converter o código PySpark para uma UDF Python tradicional linha a linha.</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="Um nó único elimina o paralelismo distribuído do Spark e não resolverá pipelines de dados corporativos de grande escala.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Substituir o cluster distribuído por um cluster de nó único com mais memória RAM.</span>
+          </div>
+          
+        </div>
+        <div class="flash-feedback-box"></div>
+      </div>
+    </section>
+
+    <!-- Navegação de Rodapé entre Lições -->
+    <footer class="lesson-footer">
+      <div><a href="0001-arquitetura-azure-databricks-compute-dbus.html" class="nav-btn">← Lição Anterior</a></div>
+      <div class="lesson-footer-counter">Lição 0002 de 0015</div>
+      <div><a href="0003-protocolo-delta-lake-acid-time-travel.html" class="nav-btn">Próxima Lição →</a></div>
+    </footer>
+  </article>
+
+  <!-- Sticky Audio Player com Narração Neural PT-BR -->
+  <aside class="sticky-audio-bar" id="sticky-audio-bar">
+    <audio id="lesson-audio" preload="auto">
+      <source src="../assets/audio/lesson-0002-pt.mp3" type="audio/mpeg">
+    </audio>
+    <div class="audio-info">
+      <span class="audio-icon">🎧</span>
+      <div>
+        <p class="audio-text-title">Narração da Lição 0002</p>
+        <p class="audio-text-sub">Áudio Neural PT-BR • Pronúncia Técnica Databricks (Kokoro 82M)</p>
+      </div>
+    </div>
+    <div class="audio-controls">
+      <button class="audio-btn audio-btn-play" id="btn-audio-play" title="Reproduzir / Pausar Áudio">▶</button>
+      <div class="audio-progress-bar" id="audio-progress-bar">
+        <div class="audio-progress-fill" id="audio-progress-fill"></div>
+      </div>
+      <span class="audio-time"><span id="audio-time-current">00:00</span> / <span id="audio-time-total">00:00</span></span>
+      <button class="audio-speed-btn" id="btn-audio-speed" title="Velocidade de Reprodução">1x</button>
+    </div>
+    <div class="audio-actions">
+      <button type="button" class="audio-tool-btn" id="btn-audio-pin" title="Alternar entre barra fixa na base ou embutida no final da página">
+        <span class="pin-icon">📌</span>
+        <span class="pin-label">Fixado</span>
+      </button>
+      <button type="button" class="audio-tool-btn audio-btn-close" id="btn-audio-hide" title="Ocultar Tocador de Áudio (recolher para pílula flutuante)">
+        <span>▼</span>
+        <span class="hide-label">Ocultar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Pílula Flutuante Discreta para Reabrir o Player quando Oculto -->
+  <button type="button" class="audio-reopen-pill" id="btn-audio-reopen" title="Expandir Tocador de Áudio da Lição" style="display: none;">
+    <span class="pill-icon">🎧</span>
+    <span class="pill-label">Áudio 0002</span>
+    <span class="pill-play-state" id="pill-play-state">▶</span>
+  </button>
+
+</body>
+</html>

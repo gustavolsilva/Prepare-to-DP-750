@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folha 01: Guia Visual de Arquitetura Apache Spark, Compute Plane & FinOps | Databricks Formation DP-750</title>
+  <meta name="description" content="Control Plane vs Compute Plane, Driver & Executors, Catalyst Optimizer, Photon Engine C++, Pools e Governança de DBUs.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#referencias" class="active">Folhas de Referência</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Folhas Rápidas:</span>
+      <a href="01-spark-and-databricks-architecture-visual-guide.html" class="index-chip active">01 Arquitetura</a>
+      <a href="02-unity-catalog-security-and-governance-guide.html" class="index-chip ">02 Unity Catalog</a>
+      <a href="03-ingestion-autoloader-and-dlt-decision-matrix.html" class="index-chip ">03 Ingestão &amp; DLT</a>
+      <a href="04-pyspark-and-spark-sql-engineering-cheatsheet.html" class="index-chip ">04 PySpark &amp; SQL</a>
+      <a href="05-delta-lake-liquid-clustering-and-tuning-guide.html" class="index-chip ">05 Liquid &amp; Tuning</a>
+      <a href="06-workflows-dabs-cicd-and-system-tables-cheatsheet.html" class="index-chip ">06 DABs &amp; System</a>
+    </div>
+  </nav>
+
+  <article>
+    <div style="margin-bottom: 2rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #0078D4; text-transform: uppercase; letter-spacing: 0.05em;">Folha de Referência Rápida DP-750</span>
+      <h1>Folha 01: Guia Visual de Arquitetura Apache Spark, Compute Plane & FinOps</h1>
+      <p class="subtitle">Control Plane vs Compute Plane, Driver & Executors, Catalyst Optimizer, Photon Engine C++, Pools e Governança de DBUs.</p>
+    </div>
+
+    <div class="fullwidth">
+      
+        <h2>1. Control Plane vs Compute Plane no Azure Databricks</h2>
+        <p>No Azure Databricks, a separação rígida de responsabilidades entre Control Plane e Compute Plane é a base de segurança, conformidade e governança de dados exigida no exame DP-750:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Camada Arquitetural</th>
+              <th>Localização Física</th>
+              <th>Componentes Hospedados</th>
+              <th>Acesso a Dados de Clientes?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Control Plane</strong></td>
+              <td>Assinatura gerenciada pela Microsoft/Databricks na região do Azure</td>
+              <td>Web Application UI, serviço de Notebooks, Job Scheduler, Cluster Manager e metadados de orquestração</td>
+              <td><strong>NUNCA</strong> (dados de negócio NUNCA residem nem transitam pelo Control Plane)</td>
+            </tr>
+            <tr>
+              <td><strong>Compute Plane (Classic)</strong></td>
+              <td>Assinatura Azure do Cliente (Customer VNet gerenciada ou injetada)</td>
+              <td>VMs dos Clusters (Driver e Workers), armazenamento DBFS raiz local e caches em memória/disco</td>
+              <td><strong>SIM</strong> (lê e grava diretamente nos containers do ADLS Gen2 via credenciais seguras)</td>
+            </tr>
+            <tr>
+              <td><strong>Compute Plane (Serverless)</strong></td>
+              <td>Rede segura isolada gerenciada pela Databricks na mesma região do cliente</td>
+              <td>MicroVMs efêmeras, Serverless SQL Warehouses, Serverless Jobs e pipelines de computação sob demanda</td>
+              <td><strong>SIM</strong> (acessa o ADLS Gen2 do cliente via túneis privados e credenciais efêmeras do Entra ID)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>2. Conectividade Segura: Secure Cluster Connectivity & Private Link</h2>
+        <ul>
+          <li><strong>Secure Cluster Connectivity (No Public IP - NPIP):</strong> Por padrão, os nós de computação no Compute Plane não possuem endereços IP públicos. Toda comunicação com o Control Plane ocorre via túneis TLS de saída (outbound) na porta 443 através de uma interface de rede segura (SCC relay). Não é necessário abrir nenhuma porta de entrada (inbound) no NSG.</li>
+          <li><strong>VNet Injection:</strong> Permite implantar o Compute Plane em uma Rede Virtual (VNet) própria do cliente. <em>Requisito do DP-750:</em> Exige exatamente <strong>duas subnets dedicadas</strong> (uma pública/host e uma privada/container), cada uma com tamanho mínimo <strong>/26</strong> (recomendado <strong>/24</strong>), delegadas exclusivamente para o serviço <code>Microsoft.Databricks/workspaces</code>.</li>
+          <li><strong>Azure Private Link:</strong>
+            <ul>
+              <li><strong>Front-end Private Link:</strong> Isola o acesso de analistas e conexões REST API do portal web, eliminando a exposição pública da UI do workspace.</li>
+              <li><strong>Back-end Private Link:</strong> Isola a comunicação interna entre os nós do Compute Plane e a infraestrutura de gerenciamento do Control Plane.</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h2>3. Anatomia do Apache Spark & Pipeline do Catalyst Optimizer</h2>
+        <p>O Apache Spark opera sob o modelo mestre-trabalhador (Master-Worker), onde o <strong>Driver</strong> coordena a execução e os <strong>Executors</strong> processam partições de dados:</p>
+        <pre><code>-- Fluxo de Compilação de Consultas no Apache Spark:
+1. Unresolved Logical Plan: Sintaxe inicial de DataFrames PySpark ou consultas Spark SQL.
+2. Analyzed Logical Plan: Validação de nomes de tabelas, colunas e tipos contra o Unity Catalog Metastore.
+3. Optimized Logical Plan: Aplicação de regras heurísticas do Catalyst:
+   - Predicate Pushdown (empurra filtros para o storage ADLS Gen2 antes de ler tudo).
+   - Column Pruning (elimina colunas desnecessárias da memória).
+   - Constant Folding e simplificação de expressões booleanas.
+4. Physical Plans: Geração de múltiplos planos físicos candidatos avaliados pelo Cost-Based Optimizer (CBO).
+5. Selected Physical Plan: Compilação do plano vencedor para:
+   - WholeStageCodegen (Bytecode Java otimizado via Tungsten).
+   - Photon Execution Engine (Instruções C++ vetorizadas SIMD caso habilitado).</code></pre>
+
+        <h2>4. Photon Engine Vectorized Execution vs Spark Tradicional</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Dimensão</th>
+              <th>Apache Spark Tradicional (Tungsten)</th>
+              <th>Photon Engine (C++ Vetorizado)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Linguagem do Motor</strong></td>
+              <td>Java / Scala compilado para bytecode na JVM</td>
+              <td>C++ nativo com instruções de CPU vetorizadas (SIMD)</td>
+            </tr>
+            <tr>
+              <td><strong>Processamento de Dados</strong></td>
+              <td>Iterador linha a linha com sobrecarga de chamadas de métodos</td>
+              <td>Processa blocos de milhares de linhas por ciclo de clock de CPU</td>
+            </tr>
+            <tr>
+              <td><strong>Impacto de Garbage Collection</strong></td>
+              <td>Sujeito a pausas de GC da JVM em grandes joins e agregações</td>
+              <td>Gerenciamento nativo de memória fora da JVM (Zero pausas de GC)</td>
+            </tr>
+            <tr>
+              <td><strong>Ganhos de Performance</strong></td>
+              <td>Linha de base</td>
+              <td>Aceleração de 3x a 8x em scans Delta, agregações, joins e merges</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>5. Matriz de Tipos de Computação & FinOps de DBUs</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo de Cluster</th>
+              <th>Caso de Uso Recomendado</th>
+              <th>Custo de DBUs</th>
+              <th>Política de Autotermination Recomendada</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>All-Purpose Cluster</strong></td>
+              <td>Desenvolvimento interativo, exploração de dados e testes em notebooks</td>
+              <td>Alta (~$0.55/DBU)</td>
+              <td>15 a 20 minutos (imposto rigorosamente via Cluster Policy)</td>
+            </tr>
+            <tr>
+              <td><strong>Job Cluster (Efêmero)</strong></td>
+              <td>Workloads de produção agendados via Databricks Workflows</td>
+              <td>Baixa (~$0.20-0.40/DBU; até 60% mais barato)</td>
+              <td>Destruído automaticamente logo após a conclusão da tarefa</td>
+            </tr>
+            <tr>
+              <td><strong>Serverless SQL Warehouse</strong></td>
+              <td>Dashboards BI (Power BI), consultas analíticas ad-hoc e Lakeview</td>
+              <td>Cobrança por segundo exato</td>
+              <td>1 a 5 minutos de inatividade (inicialização instantânea sub-10s)</td>
+            </tr>
+            <tr>
+              <td><strong>Databricks Instance Pool</strong></td>
+              <td>Reduzir tempo de boot de clusters recorrentes de 5-7 min para &lt; 30s</td>
+              <td>Zero DBU enquanto ocioso (apenas custo de VM Azure)</td>
+              <td>Configurar Min Idle instances durante horário comercial</td>
+            </tr>
+            <tr>
+              <td><strong>Single-Node Cluster</strong></td>
+              <td>Cargas de trabalho que não precisam de paralelismo (MLflow, APIs, metadados)</td>
+              <td>Baixíssima (1 única VM atuando como Driver e Executor)</td>
+              <td>Desativa workers; previne alocação desnecessária de nós</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>6. ⚠️ Pegadinhas Críticas do Exame DP-750 (Arquitetura & FinOps)</h2>
+        <blockquote>
+          <ul>
+            <li><strong>All-Purpose vs Job Cluster em Produção:</strong> Se a questão mencionar um pipeline que roda diariamente ou periodicamente e perguntar como reduzir custos de nuvem, a resposta correta SEMPRE envolve migrar o notebook para um <strong>Databricks Workflow orquestrado com Job Cluster efêmero</strong>.</li>
+            <li><strong>Montagens Legadas no DBFS (/mnt):</strong> O exame considera o uso de <code>dbutils.fs.mount()</code> e chaves de acesso em texto plano uma prática legada obsoleta. A abordagem moderna oficial do DP-750 exige <strong>Unity Catalog com Storage Credentials e External Locations</strong> ou <strong>Volumes</strong>.</li>
+            <li><strong>Subnets para VNet Injection:</strong> Lembre-se: duas subnets exclusivas, tamanho mínimo <code>/26</code>, delegadas para <code>Microsoft.Databricks/workspaces</code>. Elas NÃO podem ser compartilhadas com nenhum outro recurso da Azure.</li>
+          </ul>
+        </blockquote>
+        
+    </div>
+
+    <footer style="margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid #E1E8ED; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-sans);">
+      <div><a href="../index.html#referencias">← Voltar ao Portal</a></div>
+      <div><a href="../simulados/index.html" style="font-weight: 700; color: #FF3621;">Praticar no Simulado Oficial (+180Q) →</a></div>
+    </footer>
+  </article>
+
+  <script src="../assets/lens.js"></script>
+</body>
+</html>

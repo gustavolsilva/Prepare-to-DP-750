@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lição 0001: Arquitetura Azure Databricks, Control Plane vs Compute Plane & FinOps de DBUs | Databricks Formation DP-750</title>
+  <meta name="description" content="Domine a divisão fundamental entre Control Plane e Compute Plane no Azure Databricks, entenda o modelo de cobrança por DBUs (Databricks Units) e as diferenças arquiteturais entre Classic Compute e Serverless Compute.">
+  <link rel="stylesheet" href="../assets/tufte.css">
+  <link rel="stylesheet" href="../assets/vark.css">
+  <script src="../assets/lens.js"></script>
+</head>
+<body data-active-lens="all">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <a href="../index.html" class="brand-logo">
+      <span class="brand-badge">DP-750</span>
+      <span>Databricks Formation</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Portal</a></li>
+      <li><a href="../index.html#modulo-0" class="active">Módulo 0</a></li>
+      <li><a href="../simulados/index.html">Simulados Pearson VUE</a></li>
+      <li><a href="../reference/01-spark-and-databricks-architecture-visual-guide.html">Folhas de Referência</a></li>
+      <li><button type="button" class="theme-toggle-btn" onclick="window.toggleAppTheme()">🌙 Modo Dark</button></li>
+    </ul>
+  </header>
+
+  <!-- Quick Index Superior (#quick-index) -->
+  <nav id="quick-index">
+    <div class="quick-index-container">
+      <span class="quick-index-label">Lições Rápidas:</span>
+      <a href="0001-arquitetura-azure-databricks-compute-dbus.html" class="index-chip active">0001</a>
+      <a href="0002-anatomia-apache-spark-catalyst-photon.html" class="index-chip ">0002</a>
+      <a href="0003-protocolo-delta-lake-acid-time-travel.html" class="index-chip ">0003</a>
+      <a href="0004-workspaces-entra-id-vnet-private-link.html" class="index-chip ">0004</a>
+      <a href="0005-clusters-policies-pools-serverless-sql.html" class="index-chip ">0005</a>
+      <a href="0006-integracao-azure-keyvault-adls-external.html" class="index-chip ">0006</a>
+      <a href="0007-unity-catalog-metastore-namespace-volumes.html" class="index-chip ">0007</a>
+      <a href="0008-controle-acesso-fino-row-column-masks.html" class="index-chip ">0008</a>
+      <a href="0009-linhagem-system-tables-delta-sharing.html" class="index-chip ">0009</a>
+      <a href="0010-ingestao-autoloader-copyinto-lakeflow.html" class="index-chip ">0010</a>
+      <a href="0011-medallion-pyspark-sparksql-scd1-scd2.html" class="index-chip ">0011</a>
+      <a href="0012-structured-streaming-watermark-joins.html" class="index-chip ">0012</a>
+      <a href="0013-liquid-clustering-deletion-vectors-caching.html" class="index-chip ">0013</a>
+      <a href="0014-delta-live-tables-streaming-views-expectations.html" class="index-chip ">0014</a>
+      <a href="0015-orquestracao-dabs-cicd-system-tables.html" class="index-chip ">0015</a>
+      <a href="../simulados/index.html" class="index-chip special">Simulado (+180Q)</a>
+    </div>
+  </nav>
+
+  <article>
+    <!-- Header da Lição -->
+    <div id="bloco-contexto" style="margin-bottom: 1.5rem;">
+      <span style="font-size: 0.85rem; font-weight: 700; color: #FF3621; text-transform: uppercase; letter-spacing: 0.05em;">Módulo 0: Fundamentos de Apache Spark, Delta Lake & Lakehouse</span>
+      <h1>Lição 0001: Arquitetura Azure Databricks, Control Plane vs Compute Plane & FinOps de DBUs</h1>
+      <p class="subtitle">Domine a divisão fundamental entre Control Plane e Compute Plane no Azure Databricks, entenda o modelo de cobrança por DBUs (Databricks Units) e as diferenças arquiteturais entre Classic Compute e Serverless Compute.</p>
+    </div>
+
+    <!-- Barra de Nível / Lente (Persistência Global no padrão DP-700) -->
+    <nav class="lens-selector-bar">
+      <span>Nível Ativo:</span>
+      <button class="lens-btn active" data-lens="unificado" data-lens-target="all">
+        <span>🌐 Visão Unificada</span>
+        <span class="lens-key-badge">0</span>
+      </button>
+      <button class="lens-btn" data-lens="junior" data-lens-target="junior">
+        <span>🌱 Júnior</span>
+        <span class="lens-key-badge">1</span>
+      </button>
+      <button class="lens-btn" data-lens="pleno" data-lens-target="pleno">
+        <span>🛠️ Pleno</span>
+        <span class="lens-key-badge">2</span>
+      </button>
+      <button class="lens-btn" data-lens="senior" data-lens-target="senior">
+        <span>🎯 Sênior &amp; DP-750</span>
+        <span class="lens-key-badge">3</span>
+      </button>
+      <button class="lens-btn" data-lens="staff" data-lens-target="staff">
+        <span>⚙️ Staff</span>
+        <span class="lens-key-badge">4</span>
+      </button>
+      <button class="lens-btn" data-lens="clevel" data-lens-target="c-level">
+        <span>🏛️ C-Level</span>
+        <span class="lens-key-badge">5</span>
+      </button>
+      <div class="current-lens-badge" id="current-profile-label">🌐 Visão Unificada Completa</div>
+    </nav>
+
+    <!-- Barra de Navegação Rápida da Lição -->
+    <div class="vark-nav-bar">
+      <span>Navegação da Lição:</span>
+      <a href="#bloco-audio" class="vark-pill">🎧 Áudio Explicativo</a>
+      <a href="#bloco-visual" class="vark-pill">👁️ Arquitetura Visual</a>
+      <a href="#bloco-teoria" class="vark-pill">📖 Teoria &amp; Decisões</a>
+      <a href="#bloco-pratica" class="vark-pill">🛠️ Lab Hands-on</a>
+      <a href="#bloco-quiz" class="vark-pill">🎯 Desafio do Exame</a>
+    </div>
+
+    <!-- Narração Técnica em Áudio -->
+    <section id="bloco-audio" class="vark-section">
+      <span class="vark-badge vark-badge-a">🎧 Narração da Aula &amp; Termos Oficiais</span>
+      <p>
+        Acompanhe a explicação técnica em áudio desta lição, com pronúncia calibrada dos termos oficiais em inglês do Azure Databricks (ex: <em>Catalyst Optimizer, Photon, Liquid Clustering, Deletion Vectors, Delta Log</em>).
+      </p>
+      <div class="audio-hint-box">
+        <strong>Controle de Reprodução:</strong> Utilize o player na base da tela para iniciar o áudio, ajustar a velocidade (1x, 1.25x, 1.5x, 2x) ou use os botões <strong>Fixar/Desafixar</strong> e <strong>Ocultar</strong> para personalizar sua experiência de leitura.
+        <div style="margin-top: 0.75rem; display: flex; gap: 0.6rem; flex-wrap: wrap;">
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPlayFromSection()">
+            <span>▶️ Ouvir Lição Agora</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioPin()">
+            <span class="inline-pin-label">📍 Desafixar da Base</span>
+          </button>
+          <button type="button" class="audio-tool-btn" onclick="window.toggleAudioHide(true)">
+            <span>▼ Ocultar Player</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Arquitetura Visual & Workspace -->
+    <section id="bloco-visual" class="vark-section">
+      <span class="vark-badge vark-badge-v">👁️ Arquitetura de Referência &amp; Console Interativo</span>
+      
+    <div class="svg-diagram-wrapper">
+      <svg viewBox="0 0 960 360" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad-db-0001" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1B3139"/>
+            <stop offset="100%" stop-color="#111E24"/>
+          </linearGradient>
+          <linearGradient id="grad-accent-0001" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#FF3621"/>
+            <stop offset="100%" stop-color="#FF5A36"/>
+          </linearGradient>
+          <filter id="shadow-0001" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.15"/>
+          </filter>
+        </defs>
+
+        <rect x="10" y="10" width="940" height="340" rx="12" fill="#F8FAFC" stroke="#D1DDE5" stroke-width="1.5"/>
+        <rect x="10" y="10" width="940" height="50" rx="12" fill="url(#grad-db-0001)"/>
+        <rect x="10" y="48" width="940" height="12" fill="#111E24"/>
+        <text x="35" y="42" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" font-weight="700" letter-spacing="0.5">
+          ARQUITETURA DE REFERÊNCIA DP-750 — 0001
+        </text>
+        <text x="890" y="42" fill="#FF5A36" font-family="monospace" font-size="14" font-weight="700" text-anchor="end">
+          AZURE DATABRICKS
+        </text>
+
+        <!-- Bloco 1: Controle & Origem -->
+        <g transform="translate(40, 85)" filter="url(#shadow-0001)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#0078D4" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="#0078D4"/>
+          <rect x="0" y="30" width="260" height="8" fill="#0078D4"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">1. CONTROLE &amp; ORIGEM</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="80" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Microsoft Entra ID / SCIM</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="135" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Azure Key Vault / Secret</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#F0F6F9" stroke="#BDCBD3"/>
+          <text x="30" y="190" fill="#1B3139" font-family="sans-serif" font-size="12" font-weight="600">Control Plane (WebApp/UI)</text>
+        </g>
+
+        <!-- Seta 1 para 2 -->
+        <path d="M 310 200 L 345 200" stroke="#FF3621" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="345,194 357,200 345,206" fill="#FF3621"/>
+
+        <!-- Bloco 2: Compute Plane -->
+        <g transform="translate(360, 85)" filter="url(#shadow-0001)">
+          <rect x="0" y="0" width="260" height="230" rx="8" fill="#FFFFFF" stroke="#FF3621" stroke-width="2"/>
+          <rect x="0" y="0" width="260" height="38" rx="8" fill="url(#grad-accent-0001)"/>
+          <rect x="0" y="30" width="260" height="8" fill="#FF5A36"/>
+          <text x="130" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">2. COMPUTE PLANE &amp; SPARK</text>
+          
+          <rect x="20" y="55" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="80" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Photon Engine C++ / DBR</text>
+          
+          <rect x="20" y="110" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="135" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Job Cluster / Serverless</text>
+          
+          <rect x="20" y="165" width="220" height="42" rx="6" fill="#FFF9F8" stroke="#FFBEB6"/>
+          <text x="30" y="190" fill="#C22212" font-family="sans-serif" font-size="12" font-weight="600">Catalyst Logical &amp; Physical</text>
+        </g>
+
+        <!-- Seta 2 para 3 -->
+        <path d="M 630 200 L 665 200" stroke="#00A972" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polygon points="665,194 677,200 665,206" fill="#00A972"/>
+
+        <!-- Bloco 3: Unity Catalog & Delta -->
+        <g transform="translate(680, 85)" filter="url(#shadow-0001)">
+          <rect x="0" y="0" width="240" height="230" rx="8" fill="#FFFFFF" stroke="#00A972" stroke-width="2"/>
+          <rect x="0" y="0" width="240" height="38" rx="8" fill="#00A972"/>
+          <rect x="0" y="30" width="240" height="8" fill="#00A972"/>
+          <text x="120" y="25" fill="#FFFFFF" font-family="sans-serif" font-size="13" font-weight="700" text-anchor="middle">3. UNITY CATALOG &amp; DELTA</text>
+          
+          <rect x="15" y="55" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="80" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Namespace: cat.sch.tbl</text>
+          
+          <rect x="15" y="110" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="135" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">Delta Log (_delta_log JSON)</text>
+          
+          <rect x="15" y="165" width="210" height="42" rx="6" fill="#E8F8F2" stroke="#A2E4B8"/>
+          <text x="25" y="190" fill="#00703C" font-family="sans-serif" font-size="12" font-weight="600">ADLS Gen2 Parquet / DVs</text>
+        </g>
+      </svg>
+      <div class="svg-caption">Figura 0001.1: Fluxo arquitetural do Azure Databricks detalhando a segregação de responsabilidades do exame DP-750.</div>
+    </div>
+    
+      
+    <div class="workspace-mock-frame">
+      <div class="workspace-mock-header">
+        <div class="workspace-mock-dots">
+          <div class="mock-dot mock-dot-red"></div>
+          <div class="mock-dot mock-dot-yellow"></div>
+          <div class="mock-dot mock-dot-green"></div>
+        </div>
+        <div class="workspace-mock-title">Azure Databricks Workspace — adb-prod-eastus2.azuredatabricks.net (0001)</div>
+        <div style="color: #00A972; font-size: 0.72rem; font-weight: 700;">CONNECTED • DBR 15.4 LTS PHOTON</div>
+      </div>
+      <div style="padding: 1.2rem; background: #141E24; color: #E1E8ED; font-family: monospace; font-size: 0.85rem; line-height: 1.6;">
+        <div style="color: #8BA2AD; margin-bottom: 0.8rem;">// Console interativo do Azure Databricks — Simulação da Lição 0001</div>
+        <div style="color: #FF5A36;">%python</div>
+        <div><span style="color: #0078D4;">import</span> dlt</div>
+        <div><span style="color: #0078D4;">from</span> pyspark.sql.functions <span style="color: #0078D4;">import</span> col, current_timestamp, expr</div>
+        <div style="margin: 0.5rem 0; color: #536B75;"># Executando validação de governança e métricas de execução</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.optimizeWrite.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div>spark.conf.set(<span style="color: #FFB900;">"spark.databricks.delta.autoCompact.enabled"</span>, <span style="color: #00A972;">"true"</span>)</div>
+        <div style="margin-top: 0.6rem; color: #00A972;">✓ SparkSession ativa: driver 10.0.1.4 | Cluster: Job-Cluster-0001 | DBUs/h: 1.5</div>
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Conteúdo Teórico Chaveado por Nível -->
+    <section id="bloco-teoria" class="vark-section">
+      <span class="vark-badge vark-badge-r">📖 Conteúdo Teórico &amp; Matrizes de Decisão</span>
+
+      <!-- 1. TEXTO DA VISÃO UNIFICADA COMPLETA (Padrão DP-700) -->
+      <div class="lens-text-content" data-lens="unificado" data-lens-block>
+        <div class="unified-lens-box">
+          <h3 style="margin-top: 0; font-size: 1.05rem;">🌐 Visão Unificada Completa: Integração Arquitetural de Ponta a Ponta</h3>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            Domine a divisão fundamental entre Control Plane e Compute Plane no Azure Databricks, entenda o modelo de cobrança por DBUs (Databricks Units) e as diferenças arquiteturais entre Classic Compute e Serverless Compute. Esta lição articula a ponte entre os fundamentos conceituais, a prática de engenharia no Azure Databricks e os critérios rigorosos de aprovação no exame Microsoft DP-750.
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>No dia a dia prático:</strong> No Azure Databricks clássico, o Control Plane reside na assinatura gerenciada pela Microsoft/Databricks, enquanto o Compute Plane é alocado na assinatura Azure do próprio cliente (Customer Subscription) dentro de uma VNet gerenciada ou injetada. O cliente paga o custo da infraestrutura de VM Azure diretamente à Microsoft e a taxa de software Databricks via DBUs (Databricks Units por hora/núcleo). Já na modalidade Serverless, os nós de computação sobem instantaneamente em um pool seguro gerenciado pela Databricks, reduzindo o tempo de startup de 4-6 minutos para menos de 10 segundos.
+          </p>
+          <p style="margin-bottom: 0.75rem; line-height: 1.65;">
+            <strong>Diretriz oficial DP-750 &amp; Decisão Arquitetural:</strong> Pegadinha clássica do exame DP-750: Quando escolher entre All-Purpose Compute e Job Compute? All-Purpose é destinado a desenvolvimento interativo em notebooks e cobra uma taxa de DBU significativamente maior (ex: ~$0.55/DBU). Workloads de produção agendados SEMPRE devem usar Job Clusters (ou Serverless Jobs), cuja taxa de DBU é até 60% menor (~$0.20-0.40/DBU). Outro ponto crítico: os dados brutos e resultados residem no ADLS Gen2 e NUNCA transitam pelo Control Plane, garantindo conformidade com LGPD/GDPR e isolamento de rede.
+          </p>
+          <p style="margin-bottom: 0; line-height: 1.65;">
+            <strong>Mecânica Interna &amp; Governança Executiva:</strong> Sob o capô, a comunicação entre o Control Plane e o Compute Plane ocorre via Secure Cluster Connectivity (No Public IP - NPIP). Os nós do cluster iniciam túneis TLS de saída (outbound) na porta 443 em direção ao Control Plane, dispensando a abertura de portas de entrada no firewall ou NSG do cliente. No Serverless Compute, o isolamento multi-inquilino é garantido via microVMs e namespaces Linux com criptografia de ponta a ponta e credenciais efêmeras do Entra ID trocadas a cada job execution. Em termos de FinOps corporativo: FinOps Strategy: O TCO (Total Cost of Ownership) do Lakehouse é otimizado com auto-termination rigoroso (ex: 15-20 minutos para notebooks interativos), uso obrigatório de Single-Node clusters para tarefas leves de engenharia e substituição de All-Purpose Clusters por Jobs efêmeros. O Serverless Compute elimina o desperdício de clusters ociosos rodando em background, cobrando exatamente pelos segundos de computação consumidos.
+          </p>
+        </div>
+      </div>
+
+      <!-- 2. Lente Júnior -->
+      <div class="lens-text-content" data-lens="junior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-junior">🌱 Lente Júnior: Fundamentos &amp; Analogia do Mundo Real</span>
+        <p>Imagine o Azure Databricks como um restaurante com cozinha aberta: o Control Plane é o garçom e o caixa que organizam os pedidos e agendam as entregas. Já o Compute Plane é a cozinha onde os cozinheiros (máquinas virtuais) realmente picam, cozinham e processam os alimentos (seus terabytes de dados). Você só paga pelo tempo que a cozinha fica acesa através dos DBUs!</p>
+      </div>
+
+      <!-- 3. Lente Pleno -->
+      <div class="lens-text-content" data-lens="pleno" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-pleno">🛠️ Lente Pleno: Engenharia Prática &amp; Implementação</span>
+        <p>No Azure Databricks clássico, o Control Plane reside na assinatura gerenciada pela Microsoft/Databricks, enquanto o Compute Plane é alocado na assinatura Azure do próprio cliente (Customer Subscription) dentro de uma VNet gerenciada ou injetada. O cliente paga o custo da infraestrutura de VM Azure diretamente à Microsoft e a taxa de software Databricks via DBUs (Databricks Units por hora/núcleo). Já na modalidade Serverless, os nós de computação sobem instantaneamente em um pool seguro gerenciado pela Databricks, reduzindo o tempo de startup de 4-6 minutos para menos de 10 segundos.</p>
+        <label for="sn-0001-1" class="margin-toggle sidenote-number"></label>
+        <input type="checkbox" id="sn-0001-1" class="margin-toggle"/>
+        <span class="sidenote">Nota prática de engenharia: A adesão estrita aos padrões de convenção evita regressões em produção e garante portabilidade imediata para ambientes multirregionais no Azure.</span>
+      </div>
+
+      <!-- 4. Lente Sênior & Exame DP-750 -->
+      <div class="lens-text-content" data-lens="senior" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-senior">🎯 Lente Sênior: Foco no Exame DP-750 &amp; Pegadinhas Oficiais</span>
+        <p>Pegadinha clássica do exame DP-750: Quando escolher entre All-Purpose Compute e Job Compute? All-Purpose é destinado a desenvolvimento interativo em notebooks e cobra uma taxa de DBU significativamente maior (ex: ~$0.55/DBU). Workloads de produção agendados SEMPRE devem usar Job Clusters (ou Serverless Jobs), cuja taxa de DBU é até 60% menor (~$0.20-0.40/DBU). Outro ponto crítico: os dados brutos e resultados residem no ADLS Gen2 e NUNCA transitam pelo Control Plane, garantindo conformidade com LGPD/GDPR e isolamento de rede.</p>
+        <blockquote>
+          <strong>⚠️ Dica Crítica de Exame Microsoft DP-750:</strong> Preste extrema atenção aos enunciados que mencionam restrições orçamentárias (FinOps) vs restrições de latência. A resposta tecnicamente mais veloz nem sempre é a correta se violar a diretriz de menor custo de DBUs do enunciado.
+        </blockquote>
+      </div>
+
+      <!-- 5. Lente Staff / Internals -->
+      <div class="lens-text-content" data-lens="staff" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-staff">⚙️ Lente Staff: Mecânica Interna &amp; Algoritmos Sob o Capô</span>
+        <p>Sob o capô, a comunicação entre o Control Plane e o Compute Plane ocorre via Secure Cluster Connectivity (No Public IP - NPIP). Os nós do cluster iniciam túneis TLS de saída (outbound) na porta 443 em direção ao Control Plane, dispensando a abertura de portas de entrada no firewall ou NSG do cliente. No Serverless Compute, o isolamento multi-inquilino é garantido via microVMs e namespaces Linux com criptografia de ponta a ponta e credenciais efêmeras do Entra ID trocadas a cada job execution.</p>
+      </div>
+
+      <!-- 6. Lente C-Level / FinOps -->
+      <div class="lens-text-content" data-lens="c-level" data-lens-alt="clevel" data-lens-block style="display: none; margin-bottom: 2rem;">
+        <span class="lens-tag-badge lens-tag-c-level">🏛️ Lente C-Level: Governança, TCO &amp; FinOps de DBUs</span>
+        <p>FinOps Strategy: O TCO (Total Cost of Ownership) do Lakehouse é otimizado com auto-termination rigoroso (ex: 15-20 minutos para notebooks interativos), uso obrigatório de Single-Node clusters para tarefas leves de engenharia e substituição de All-Purpose Clusters por Jobs efêmeros. O Serverless Compute elimina o desperdício de clusters ociosos rodando em background, cobrando exatamente pelos segundos de computação consumidos.</p>
+      </div>
+
+      <!-- Tabela ASCII de Alta Densidade Tufte -->
+      <div class="fullwidth" style="margin: 2rem 0;">
+        <h3>📊 Matriz de Decisão Arquitetural — Lição 0001</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Critério / Dimensão</th>
+              <th>Abordagem Convencional (Legada)</th>
+              <th>Padrão Ouro Azure Databricks (DP-750)</th>
+              <th>Impacto em FinOps &amp; SLA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Governança de Dados</strong></td>
+              <td>Hive Metastore e montagens DBFS locais</td>
+              <td>Unity Catalog (3-Level Namespace: cat.sch.tbl)</td>
+              <td>Zero vazamento de credenciais; trilha de auditoria centralizada</td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de Computação</strong></td>
+              <td>All-Purpose Clusters com autotermination desligado</td>
+              <td>Job Clusters efêmeros ou Serverless Compute</td>
+              <td>Redução de até 60% no consumo de DBUs por execução</td>
+            </tr>
+            <tr>
+              <td><strong>Otimização de Armazenamento</strong></td>
+              <td>Particionamento rígido com centenas de subdiretórios</td>
+              <td>Liquid Clustering (CLUSTER BY) + Deletion Vectors</td>
+              <td>Eliminação de skew e mutações sem reescrever Parquets</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Laboratório Prático Passo a Passo -->
+    <section id="bloco-pratica" class="vark-section">
+      <span class="vark-badge vark-badge-k">🛠️ Laboratório Prático Passo a Passo (Padrão Microsoft Learn)</span>
+
+      <!-- Hands-on Lab Passo a Passo com Aviso Azure -->
+      
+    <!-- BANNER DE PRÉ-REQUISITO OBRIGATÓRIO DA AZURE -->
+    <div class="lab-prereq-banner">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <h4>
+          PRÉ-REQUISITO OBRIGATÓRIO DA AZURE (Microsoft Learn Standards)
+        </h4>
+        <p>
+          Para realizar este laboratório prático e executar os comandos reais, criar clusters, pipelines Delta Live Tables (DLT) e tabelas do Unity Catalog, <strong>você precisará de um Workspace do Azure Databricks alocado na sua assinatura do Microsoft Azure</strong> (Recomendado tier Premium para suporte completo a Unity Catalog e Serverless Compute).
+        </p>
+        <div style="margin-top: 0.6rem; font-size: 0.85rem; opacity: 0.9;">
+          <strong>Pré-requisitos Técnicos:</strong> Assinatura ativa do Microsoft Azure com um Workspace Azure Databricks provisionado (Standard ou Premium). Permissão de 'Contributor' no Resource Group do Azure e 'Workspace Admin' ou permissão para criar clusters no Databricks.
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTRUTURA DO LAB PASSO A PASSO -->
+    <div class="lab-container">
+      <div class="lab-header">
+        <div>
+          <span style="font-size: 0.72rem; font-weight: 800; background: #0078D4; color: #FFFFFF; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;">
+            Hands-on Lab Walkthrough
+          </span>
+          <h3 style="margin: 0.4rem 0 0 0; font-size: 1.2rem;">Lab 0001: Provisionamento e Governança de Computação no Azure Databricks</h3>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 0.85rem; font-weight: 600;">⏱️ Tempo Estimado: 30 minutos</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <strong style="font-size: 0.95rem;">📖 Cenário do Laboratório:</strong>
+        <p style="margin: 0.3rem 0; font-size: 0.92rem; line-height: 1.6;">
+          Você é o Engenheiro de Dados líder de uma organização financeira e precisa provisionar um ambiente de desenvolvimento no Azure Databricks. Sua missão é configurar clusters All-Purpose com limites rígidos de auto-termination, calcular custos de DBUs e comparar o TCO com Job Clusters efêmeros e Serverless Compute.
+        </p>
+      </div>
+
+      <!-- Tarefas Passo a Passo -->
+      <div style="margin-top: 1.5rem;">
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 1</span>
+            Acessar o Workspace no Azure Portal e Navegar até Compute
+          </h4>
+          <p style="white-space: pre-line;">
+            1. Acesse o portal do Azure (https://portal.azure.com).
+2. Localize seu recurso 'Azure Databricks Service' e clique em 'Launch Workspace'.
+3. Na barra de navegação esquerda do Databricks, clique no ícone 'Compute' (Computação).
+4. Observe as abas disponíveis: 'All-Purpose Compute', 'Job Clusters', 'Serverless' e 'Pools'.
+          </p>
+          
+          
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 2</span>
+            Criar um Cluster All-Purpose Otimizado para FinOps
+          </h4>
+          <p style="white-space: pre-line;">
+            1. Clique no botão 'Create compute' no canto superior direito.
+2. Configure os parâmetros exatos:
+   - Compute name: dp750-dev-cluster
+   - Policy: Personal Compute ou Unrestricted
+   - Multi node / Single node: Selecione 'Single node' (para economizar custos de VM em laboratório)
+   - Databricks Runtime Version: 15.4 LTS (Scala 2.12, Spark 3.5.0)
+   - Node type: Standard_D4ds_v5 (4 vCPUs, 16 GB memória)
+   - Auto-termination: Habilite a caixa e defina rigorosamente para 20 minutes (regras de FinOps do exame).
+3. Clique em 'Create compute' e aguarde o status mudar de 'Pending' para 'Running' (círculo verde).
+          </p>
+          
+          
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 3</span>
+            Criar um Notebook Databricks e Testar Métricas de FinOps com PySpark
+          </h4>
+          <p style="white-space: pre-line;">
+            1. No menu lateral esquerdo, clique em 'Workspace' > 'Users' > Seu Usuário e clique em 'Create' > 'Notebook'.
+2. Nomeie o notebook como 'lab_0001_finops_compute'.
+3. Conecte o notebook ao cluster 'dp750-dev-cluster' no seletor superior direito.
+4. Na Célula 1, digite o código PySpark abaixo e pressione Shift + Enter para executar:
+          </p>
+          
+            <div style="margin: 0.8rem 0;">
+              <span style="font-size: 0.75rem; font-weight: 700; color: #536B75; text-transform: uppercase;">Código para colar na célula do Notebook Databricks:</span>
+              <pre><code># COMMAND ----------
+# Célula 1: Identificação da sessão Spark e cálculo de consumo de DBUs
+spark_version = spark.conf.get("spark.databricks.clusterUsageTags.sparkVersion")
+cluster_id = spark.conf.get("spark.databricks.clusterUsageTags.clusterId")
+print(f"✓ Sessão Spark Ativa! Cluster ID: {cluster_id} | DBR Version: {spark_version}")
+
+# Simulação FinOps de consumo de DBUs:
+def calcular_custo_pipeline(horas_execucao, dbu_por_hora, preco_dbu=0.55):
+    dbus_totais = horas_execucao * dbu_por_hora
+    custo_total = dbus_totais * preco_dbu
+    return dbus_totais, custo_total
+
+# Cenário 1: All-Purpose Cluster (Interativo - taxa elevada)
+dbu_ap, custo_ap = calcular_custo_pipeline(horas_execucao=5, dbu_por_hora=3.0, preco_dbu=0.55)
+
+# Cenário 2: Job Cluster Efêmero (Produção - taxa reduzida em até 60%)
+dbu_job, custo_job = calcular_custo_pipeline(horas_execucao=5, dbu_por_hora=1.5, preco_dbu=0.40)
+
+print(f"📊 Relatório Comparativo FinOps (5 horas de workload):")
+print(f"   [All-Purpose] DBUs: {dbu_ap:.1f} | Custo: ${custo_ap:.2f} USD")
+print(f"   [Job Cluster] DBUs: {dbu_job:.1f} | Custo: ${custo_job:.2f} USD")
+print(f"   💡 Economia obtida com Job Cluster: ${custo_ap - custo_job:.2f} USD ({(1 - custo_job/custo_ap)*100:.1f}%)")</code></pre>
+            </div>
+            
+          
+            <div style="background: #0B161B; border: 1px solid #253D47; border-radius: 6px; padding: 0.8rem 1rem; margin: 0.6rem 0; font-family: monospace; font-size: 0.82rem; color: #00A972;">
+              <span style="color: #8BA2AD; font-size: 0.72rem; display: block; margin-bottom: 0.3rem;">✓ Saída Esperada no Console Databricks:</span>
+              ✓ Sessão Spark Ativa!<br>📊 Relatório Comparativo FinOps (5 horas de workload):<br>   [All-Purpose] DBUs: 15.0 | Custo: $8.25 USD<br>   [Job Cluster] DBUs: 7.5 | Custo: $3.00 USD<br>   💡 Economia obtida com Job Cluster: $5.25 USD (63.6%)
+            </div>
+            
+        </div>
+        
+        <div class="lab-task-card">
+          <h4>
+            <span class="lab-task-number">Tarefa 4</span>
+            Limpeza de Recursos FinOps (Desligamento Obrigatório)
+          </h4>
+          <p style="white-space: pre-line;">
+            1. Volte ao menu 'Compute'.
+2. Localize seu cluster 'dp750-dev-cluster' e clique no botão 'Terminate' (ícone de quadrado vermelho).
+3. Confirme o desligamento para garantir que nenhuma VM Azure nem DBUs continuem sendo cobrados enquanto você estuda as próximas lições.
+          </p>
+          
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    </section>
+
+    <!-- Desafio do Exame DP-750 com Embaralhamento Fisher-Yates -->
+    <section id="bloco-quiz" class="vark-section">
+      <div class="flash-quiz-box">
+        <div class="flash-quiz-header">
+          <h4 class="flash-quiz-title">🎯 Desafio Flash DP-750</h4>
+          <button type="button" class="btn-shuffle" title="Embaralha as alternativas usando o algoritmo Fisher-Yates">
+            <span>🔀 Embaralhar Novamente</span>
+          </button>
+        </div>
+        <div class="flash-question-text">Uma organização precisa executar um pipeline de engenharia de dados agendado todas as noites que processa 2 TB no Azure Databricks. A equipe de FinOps exige a menor taxa de consumo de DBUs possível sem comprometer o SLA. Qual estratégia de computação atende estritamente a este requisito?</div>
+        <div class="flash-options-list">
+          
+          <div class="flash-option-item" data-correct="true" data-explanation="Job Clusters efêmeros cobram a menor taxa de DBU por hora (custo de DBU de job é até 60% menor que All-Purpose) e são destruídos automaticamente após a conclusão da execução.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Criar um Databricks Workflow orquestrado usando um Job Cluster efêmero dimensionado com autoscaling.</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="All-Purpose clusters têm a taxa de DBU mais cara do Databricks e manter ligado 24/7 viola as diretrizes fundamentais de FinOps do exame DP-750.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Configurar um All-Purpose Cluster de alta disponibilidade compartilhado entre o time de dados e mantê-lo ativo 24/7.</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="Além de usar a taxa mais cara de All-Purpose, a ausência de autotermination causará cobrança contínua e Single-Node não suporta 2 TB de processamento paralelo.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Executar o pipeline dentro de um Databricks Notebook conectado a um Single-Node cluster sem autotermination.</span>
+          </div>
+          
+          <div class="flash-option-item" data-correct="false" data-explanation="O Control Plane não executa transformações de dados de clientes; ele hospeda apenas serviços de governança, agendamento e web UI.">
+            <span class="flash-option-marker"></span>
+            <span class="flash-option-text">Exportar os dados para o Control Plane do Databricks e executar o processamento diretamente na camada de gerenciamento.</span>
+          </div>
+          
+        </div>
+        <div class="flash-feedback-box"></div>
+      </div>
+    </section>
+
+    <!-- Navegação de Rodapé entre Lições -->
+    <footer class="lesson-footer">
+      <div><span class="nav-btn disabled">← Início</span></div>
+      <div class="lesson-footer-counter">Lição 0001 de 0015</div>
+      <div><a href="0002-anatomia-apache-spark-catalyst-photon.html" class="nav-btn">Próxima Lição →</a></div>
+    </footer>
+  </article>
+
+  <!-- Sticky Audio Player com Narração Neural PT-BR -->
+  <aside class="sticky-audio-bar" id="sticky-audio-bar">
+    <audio id="lesson-audio" preload="auto">
+      <source src="../assets/audio/lesson-0001-pt.mp3" type="audio/mpeg">
+    </audio>
+    <div class="audio-info">
+      <span class="audio-icon">🎧</span>
+      <div>
+        <p class="audio-text-title">Narração da Lição 0001</p>
+        <p class="audio-text-sub">Áudio Neural PT-BR • Pronúncia Técnica Databricks (Kokoro 82M)</p>
+      </div>
+    </div>
+    <div class="audio-controls">
+      <button class="audio-btn audio-btn-play" id="btn-audio-play" title="Reproduzir / Pausar Áudio">▶</button>
+      <div class="audio-progress-bar" id="audio-progress-bar">
+        <div class="audio-progress-fill" id="audio-progress-fill"></div>
+      </div>
+      <span class="audio-time"><span id="audio-time-current">00:00</span> / <span id="audio-time-total">00:00</span></span>
+      <button class="audio-speed-btn" id="btn-audio-speed" title="Velocidade de Reprodução">1x</button>
+    </div>
+    <div class="audio-actions">
+      <button type="button" class="audio-tool-btn" id="btn-audio-pin" title="Alternar entre barra fixa na base ou embutida no final da página">
+        <span class="pin-icon">📌</span>
+        <span class="pin-label">Fixado</span>
+      </button>
+      <button type="button" class="audio-tool-btn audio-btn-close" id="btn-audio-hide" title="Ocultar Tocador de Áudio (recolher para pílula flutuante)">
+        <span>▼</span>
+        <span class="hide-label">Ocultar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Pílula Flutuante Discreta para Reabrir o Player quando Oculto -->
+  <button type="button" class="audio-reopen-pill" id="btn-audio-reopen" title="Expandir Tocador de Áudio da Lição" style="display: none;">
+    <span class="pill-icon">🎧</span>
+    <span class="pill-label">Áudio 0001</span>
+    <span class="pill-play-state" id="pill-play-state">▶</span>
+  </button>
+
+</body>
+</html>
